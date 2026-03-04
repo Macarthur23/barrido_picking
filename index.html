@@ -2,177 +2,186 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Cruce Avanzado Picking vs DAD</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <title>Cruce Picking vs DAD - Detalle Completo</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .table-container { max-height: 500px; overflow-y: auto; }
+        th { sticky top: 0; background: #f3f4f6; z-index: 10; }
+    </style>
 </head>
-<body class="bg-slate-50 p-6">
-<div class="max-w-6xl mx-auto bg-white p-8 rounded-xl shadow-2xl">
-    <header class="border-b-2 border-blue-500 pb-4 mb-6">
-        <h1 class="text-3xl font-extrabold text-slate-800">Cruce de Inventario DAD</h1>
-        <p class="text-slate-500">Detección de Cancelados, Entregados y Retrasos por LPN</p>
-    </header>
+<body class="bg-slate-50 p-4 md:p-8">
+    <div class="max-w-full mx-auto bg-white shadow-2xl rounded-2xl p-6">
+        <header class="mb-8 border-b pb-4">
+            <h1 class="text-3xl font-black text-slate-800">Conciliador DAD Pro</h1>
+            <p class="text-slate-500 italic">Cruce masivo con detalle de despacho y estados</p>
+        </header>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div class="p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <label class="block text-blue-800 font-bold mb-2">1. Listado de Pistoleo (LPN)</label>
-            <input type="file" id="inputPistoleo" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div class="p-4 border-2 border-dashed border-blue-200 rounded-xl bg-blue-50">
+                <label class="block font-bold text-blue-700 mb-2">📥 1. Formulario de Pistoleo (LPN)</label>
+                <input type="file" id="fileP" class="w-full text-sm">
+            </div>
+            <div class="p-4 border-2 border-dashed border-green-200 rounded-xl bg-green-50">
+                <label class="block font-bold text-green-700 mb-2">📥 2. Reporte Maestro DAD</label>
+                <input type="file" id="fileD" class="w-full text-sm">
+            </div>
         </div>
-        <div class="p-4 bg-green-50 rounded-lg border border-green-200">
-            <label class="block text-green-800 font-bold mb-2">2. Reporte General DAD</label>
-            <input type="file" id="inputDAD" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-600 file:text-white hover:file:bg-green-700">
+
+        <button onclick="procesarTodo()" class="w-full bg-slate-800 hover:bg-black text-white font-bold py-4 rounded-xl shadow-lg transition mb-6">
+            GENERAR CRUCE Y DASHBOARD
+        </button>
+
+        <div id="status" class="text-center mb-4 font-bold text-blue-600"></div>
+
+        <div id="resultArea" class="hidden">
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+                <div class="bg-red-50 p-4 rounded-lg border border-red-200 text-center">
+                    <p class="text-xs font-bold text-red-500 uppercase">Cancelados</p>
+                    <p id="cCan" class="text-2xl font-black">0</p>
+                </div>
+                <div class="bg-orange-50 p-4 rounded-lg border border-orange-200 text-center">
+                    <p class="text-xs font-bold text-orange-500 uppercase">Entregados</p>
+                    <p id="cEnt" class="text-2xl font-black">0</p>
+                </div>
+                <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200 text-center">
+                    <p class="text-xs font-bold text-yellow-500 uppercase">Con Retraso</p>
+                    <p id="cRet" class="text-2xl font-black">0</p>
+                </div>
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 text-center">
+                    <p class="text-xs font-bold text-blue-500 uppercase">Total Items</p>
+                    <p id="cTot" class="text-2xl font-black">0</p>
+                </div>
+                <button onclick="exportarExcel()" class="bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md">
+                    Descargar Excel
+                </button>
+            </div>
+
+            <h2 class="text-lg font-bold text-slate-700 mb-3">Previsualización (Top 50)</h2>
+            <div class="table-container border rounded-lg shadow-inner bg-white">
+                <table class="w-full text-xs text-left">
+                    <thead>
+                        <tr class="bg-slate-100 border-b">
+                            <th class="p-3">LPN</th>
+                            <th class="p-3">Estado Despacho</th>
+                            <th class="p-3">Cliente</th>
+                            <th class="p-3">NV</th>
+                            <th class="p-3">SKU</th>
+                            <th class="p-3">Modalidad</th>
+                            <th class="p-3">Días Retraso</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tBody" class="divide-y"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-    <button onclick="procesarCruce()" class="w-full bg-slate-800 text-white font-bold py-4 rounded-lg hover:bg-slate-900 transition-all shadow-lg mb-8">
-        EJECUTAR CRUCE DE INFORMACIÓN
-    </button>
+    <script>
+        let dataExport = [];
 
-    <div id="dashboard" class="hidden animate-fade-in">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div class="bg-white border-l-4 border-red-500 p-4 shadow-md text-center">
-                <p class="text-xs font-bold text-gray-500 uppercase">Cancelados</p>
-                <p id="countCancelados" class="text-3xl font-black text-red-600">0</p>
-            </div>
-            <div class="bg-white border-l-4 border-orange-500 p-4 shadow-md text-center">
-                <p class="text-xs font-bold text-gray-500 uppercase">Entregados (Error)</p>
-                <p id="countEntregados" class="text-3xl font-black text-orange-600">0</p>
-            </div>
-            <div class="bg-white border-l-4 border-yellow-500 p-4 shadow-md text-center">
-                <p class="text-xs font-bold text-gray-500 uppercase">Retrasados</p>
-                <p id="countRetraso" class="text-3xl font-black text-yellow-600">0</p>
-            </div>
-            <div class="bg-white border-l-4 border-blue-500 p-4 shadow-md text-center">
-                <p class="text-xs font-bold text-gray-500 uppercase">Items en Picking</p>
-                <p id="countTotal" class="text-3xl font-black text-blue-600">0</p>
-            </div>
-        </div>
-
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-bold text-slate-700">Detalle del Cruce (Previsualización)</h2>
-            <button onclick="exportarExcel()" class="bg-green-600 text-white px-8 py-2 rounded-full font-bold hover:bg-green-700 shadow-md transition">
-                DESCARGAR EXCEL COMPLETO
-            </button>
-        </div>
-
-        <div class="overflow-x-auto bg-white rounded-lg shadow border">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-slate-100">
-                <tr>
-                    <th class="px-4 py-2 text-left text-xs font-bold text-slate-600">LPN</th>
-                    <th class="px-4 py-2 text-left text-xs font-bold text-slate-600">Cliente</th>
-                    <th class="px-4 py-2 text-left text-xs font-bold text-slate-600">SKU</th>
-                    <th class="px-4 py-2 text-left text-xs font-bold text-slate-600">N/V</th>
-                    <th class="px-4 py-2 text-left text-xs font-bold text-slate-600">Estado DAD</th>
-                    <th class="px-4 py-2 text-left text-xs font-bold text-slate-600">Días Retraso</th>
-                </tr>
-                </thead>
-                <tbody id="tablaBody" class="divide-y divide-gray-200 text-sm italic">
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<script>
-    let datosExportar = [];
-
-    async function fileToJSON(file) {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-                const sheetName = workbook.SheetNames[0];
-                resolve(XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" }));
-            };
-            reader.readAsArrayBuffer(file);
-        });
-    }
-
-    async function procesarCruce() {
-        const fileP = document.getElementById('inputPistoleo').files[0];
-        const fileD = document.getElementById('inputDAD').files[0];
-
-        if (!fileP || !fileD) return alert("Por favor selecciona ambos archivos.");
-
-        const dataP = await fileToJSON(fileP);
-        const dataD = await fileToJSON(fileD);
-
-        const hoy = new Date();
-        let cCancelados = 0, cEntregados = 0, cRetraso = 0;
-        datosExportar = [];
-        const tbody = document.getElementById('tablaBody');
-        tbody.innerHTML = "";
-
-        // 1. Obtener lista única de LPNs pistoleados
-        const lpnsPistoleados = [...new Set(dataP.map(p => String(p.LPN).trim()))];
-
-        // 2. Buscar en DAD (Relación 1 a muchos)
-        lpnsPistoleados.forEach(lpnBusqueda => {
-            const coincidencias = dataD.filter(d => String(d.LPN).trim() === lpnBusqueda);
-
-            if (coincidencias.length === 0) {
-                agregarFila({ LPN: lpnBusqueda, Observacion: "NO ENCONTRADO EN DAD" });
-            } else {
-                coincidencias.forEach(item => {
-                    // Cálculo de días de retraso
-                    let dias = 0;
-                    if (item["Fecha original de entrega"]) {
-                        const fechaEntrega = new Date(item["Fecha original de entrega"]);
-                        const diff = hoy - fechaEntrega;
-                        dias = Math.floor(diff / (1000 * 60 * 60 * 24));
-                    }
-
-                    const fila = {
-                        LPN: lpnBusqueda,
-                        Cliente: item["Nombre del cliente"] || item["Cliente"] || "N/A",
-                        SKU: item["SKU"] || item["Codigo Producto"] || "N/A",
-                        NV: item["Código de N/V"] || item["NV"] || "N/A",
-                        Descripcion: item["Descripción del producto"] || "N/A",
-                        Estado_DAD: item["Estado"] || "N/A",
-                        Dias_Retraso: dias > 0 ? dias : 0,
-                        Alerta: ""
-                    };
-
-                    // Lógica de contadores
-                    const est = String(fila.Estado_DAD).toUpperCase();
-                    if (est.includes("CANCELADO")) { cCancelados++; fila.Alerta = "⚠️ RETIRAR: CANCELADO"; }
-                    if (est.includes("ENTREGADO")) { cEntregados++; fila.Alerta = "❌ YA ENTREGADO"; }
-                    if (dias > 0) cRetraso++;
-
-                    datosExportar.push(fila);
-                    if (datosExportar.length < 50) agregarFilaTabla(fila); // Solo previsualizar los primeros 50
-                });
+        function findCol(row, keywords) {
+            const keys = Object.keys(row);
+            for (let k of keys) {
+                const cleanK = k.toLowerCase().trim();
+                if (keywords.some(kw => cleanK.includes(kw.toLowerCase()))) return row[k];
             }
-        });
+            return "";
+        }
 
-        document.getElementById('countCancelados').innerText = cCancelados;
-        document.getElementById('countEntregados').innerText = cEntregados;
-        document.getElementById('countRetraso').innerText = cRetraso;
-        document.getElementById('countTotal').innerText = datosExportar.length;
-        document.getElementById('dashboard').classList.remove('hidden');
-    }
+        async function readExcel(file) {
+            return new Promise(res => {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const wb = XLSX.read(e.target.result, { type: 'binary', cellDates: true });
+                    res(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" }));
+                };
+                reader.readAsBinaryString(file);
+            });
+        }
 
-    function agregarFilaTabla(f) {
-        const tbody = document.getElementById('tablaBody');
-        const row = `<tr>
-            <td class="px-4 py-2 font-mono">${f.LPN}</td>
-            <td class="px-4 py-2">${f.Cliente}</td>
-            <td class="px-4 py-2">${f.SKU}</td>
-            <td class="px-4 py-2">${f.NV}</td>
-            <td class="px-4 py-2 font-bold ${f.Alerta ? 'text-red-500' : 'text-gray-700'}">${f.Estado_DAD}</td>
-            <td class="px-4 py-2 text-center">${f.Dias_Retraso}</td>
-        </tr>`;
-        tbody.innerHTML += row;
-    }
+        async function procesarTodo() {
+            const fP = document.getElementById('fileP').files[0];
+            const fD = document.getElementById('fileD').files[0];
+            if(!fP || !fD) return alert("Sube ambos archivos");
 
-    function exportarExcel() {
-        const ws = XLSX.utils.json_to_sheet(datosExportar);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Resultado_Cruce");
-        XLSX.writeFile(wb, "Cruce_Picking_Final.xlsx");
-    }
-</script>
+            document.getElementById('status').innerText = "Procesando...";
+            const dataP = await readExcel(fP);
+            const dataD = await readExcel(fD);
+            
+            dataExport = [];
+            let counts = { can: 0, ent: 0, ret: 0 };
+            const hoy = new Date();
+
+            const lpns = [...new Set(dataP.map(p => String(findCol(p, ["LPN"])).trim()))].filter(l => l !== "");
+
+            lpns.forEach(lpn => {
+                const matches = dataD.filter(d => String(findCol(d, ["LPN"])).trim() === lpn);
+                
+                if(matches.length === 0) {
+                    dataExport.push({ LPN: lpn, "Estado de despacho": "NO ENCONTRADO EN DAD" });
+                } else {
+                    matches.forEach(m => {
+                        const fOrig = findCol(m, ["Fecha original", "Fecha de entrega"]);
+                        let dias = (fOrig instanceof Date) ? Math.floor((hoy - fOrig)/86400000) : 0;
+                        const est = String(findCol(m, ["Estado de despacho", "Estado"])).trim();
+                        
+                        const item = {
+                            "LPN": lpn,
+                            "Estado de despacho": est,
+                            "Fecha original de entrega": fOrig instanceof Date ? fOrig.toLocaleDateString() : fOrig,
+                            "Código de N/V": findCol(m, ["N/V", "NV", "Venta"]),
+                            "SKU": findCol(m, ["SKU"]),
+                            "Descripción": findCol(m, ["Descripción", "Producto"]),
+                            "Cantidad total": findCol(m, ["Cantidad total", "Cant total"]),
+                            "Cantidad entregada": findCol(m, ["Cantidad entregada", "Cant entregada"]),
+                            "Nombre de cliente": findCol(m, ["Nombre de cliente", "Cliente"]),
+                            "Distrito": findCol(m, ["Distrito"]),
+                            "Dirección de entrega": findCol(m, ["Dirección de entrega", "Dirección"]),
+                            "Modalidad de despacho": findCol(m, ["Modalidad de despacho", "Modalidad"]),
+                            "Canal de venta": findCol(m, ["Canal de venta", "Canal"]),
+                            "Referencia": findCol(m, ["Referencia"]),
+                            "Días de Retraso": dias > 0 ? dias : 0
+                        };
+
+                        if(est.toUpperCase().includes("CANCELADO")) counts.can++;
+                        if(est.toUpperCase().includes("ENTREGADO")) counts.ent++;
+                        if(dias > 0) counts.ret++;
+
+                        dataExport.push(item);
+                    });
+                }
+            });
+
+            // UI Update
+            document.getElementById('cCan').innerText = counts.can;
+            document.getElementById('cEnt').innerText = counts.ent;
+            document.getElementById('cRet').innerText = counts.ret;
+            document.getElementById('cTot').innerText = dataExport.length;
+            document.getElementById('resultArea').classList.remove('hidden');
+            document.getElementById('status').innerText = "✅ Cruce Exitoso";
+
+            const tb = document.getElementById('tBody');
+            tb.innerHTML = dataExport.slice(0, 50).map(r => `
+                <tr class="${String(r["Estado de despacho"]).includes('Cancelado') ? 'bg-red-50' : ''}">
+                    <td class="p-3 font-mono font-bold">${r.LPN}</td>
+                    <td class="p-3 font-semibold">${r["Estado de despacho"]}</td>
+                    <td class="p-3">${r["Nombre de cliente"]}</td>
+                    <td class="p-3">${r["Código de N/V"]}</td>
+                    <td class="p-3">${r.SKU}</td>
+                    <td class="p-3">${r["Modalidad de despacho"]}</td>
+                    <td class="p-3 text-center">${r["Días de Retraso"]}</td>
+                </tr>
+            `).join('');
+        }
+
+        function exportarExcel() {
+            const ws = XLSX.utils.json_to_sheet(dataExport);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Cruce_Picking_DAD");
+            XLSX.writeFile(wb, "Reporte_Picking_Detallado.xlsx");
+        }
+    </script>
 </body>
 </html>
+
