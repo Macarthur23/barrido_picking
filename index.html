@@ -9,14 +9,18 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .loader { border-top-color: #3498db; animation: spinner 1.5s linear infinite; }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
 </head>
 <body class="bg-slate-100 font-sans text-slate-900">
 
     <div id="role-selector" class="fixed inset-0 bg-slate-900 z-50 flex flex-col items-center justify-center space-y-6">
         <h1 class="text-white text-2xl font-black italic uppercase tracking-widest text-center px-4">Logística: Barrido de Picking</h1>
         <div class="flex flex-col space-y-4 w-64">
-            <button onclick="initApp('admin')" class="bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg transition active:scale-95 hover:bg-blue-700">ADMINISTRADOR</button>
-            <button onclick="initApp('asistente')" class="bg-orange-600 text-white font-bold py-4 rounded-2xl shadow-lg transition active:scale-95 hover:bg-orange-700">ASISTENTE (CÁMARA)</button>
+            <button onclick="initApp('admin')" class="bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg transition active:scale-95">ADMINISTRADOR</button>
+            <button onclick="initApp('asistente')" class="bg-orange-600 text-white font-bold py-4 rounded-2xl shadow-lg transition active:scale-95">ASISTENTE (CÁMARA)</button>
         </div>
     </div>
 
@@ -24,26 +28,36 @@
         
         <div id="view-admin" class="hidden max-w-[95%] mx-auto p-4 md:p-8">
             <div class="bg-white rounded-3xl shadow-xl p-6 border-t-8 border-blue-600">
-                <div class="flex justify-between items-center mb-6 border-b pb-4">
-                    <h2 class="text-2xl font-black text-slate-800">Consola de Control de Barrido</h2>
-                    <button onclick="location.reload()" class="text-xs bg-slate-200 px-3 py-1 rounded-full font-bold">Cerrar Sesión</button>
-                </div>
+                <h2 class="text-2xl font-black text-slate-800 mb-6 border-b pb-4">Consola de Control</h2>
 
-                <div class="bg-blue-50 border-2 border-dashed border-blue-200 p-6 rounded-2xl mb-8">
+                <div class="bg-blue-50 border-2 border-dashed border-blue-200 p-6 rounded-2xl mb-8 relative">
                     <p class="font-bold text-blue-800 mb-3">1. Sincronizar Base de Datos (Excel)</p>
-                    <div class="flex flex-wrap gap-4">
+                    <div class="flex flex-wrap gap-4 items-center">
                         <input type="file" id="excelFile" class="text-sm bg-white p-2 rounded-lg border">
-                        <button onclick="uploadToCloud()" class="bg-blue-600 text-white px-8 py-2 rounded-xl font-bold hover:bg-blue-700 transition">ACTUALIZAR NUBE</button>
+                        <button id="btnUpload" onclick="uploadToCloud()" class="bg-blue-600 text-white px-8 py-2 rounded-xl font-bold hover:bg-blue-700 flex items-center gap-2 transition">
+                            <span>ACTUALIZAR NUBE</span>
+                        </button>
                     </div>
-                    <div id="admin-status" class="mt-3 text-sm font-bold text-blue-600 italic"></div>
+
+                    <div id="uploading-ui" class="hidden mt-4 bg-white p-4 rounded-xl border border-blue-200 shadow-sm animate-pulse">
+                        <div class="flex items-center gap-3">
+                            <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-6 w-6"></div>
+                            <span class="font-bold text-blue-600">Procesando y Subiendo a Firebase...</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5 mt-3">
+                            <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    
+                    <div id="admin-status" class="mt-3 text-sm font-bold text-green-600 italic"></div>
                 </div>
 
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
-                    <h3 class="font-black text-slate-700 uppercase italic tracking-tighter">Reporte de Pistoleo en Tiempo Real</h3>
-                    <button onclick="exportToExcel()" class="bg-green-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-green-700 shadow-md transition">DESCARGAR EXCEL FINAL</button>
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-black text-slate-700 uppercase italic">Registro en Tiempo Real</h3>
+                    <button onclick="exportToExcel()" class="bg-green-600 text-white px-6 py-2 rounded-xl font-bold shadow-md">EXPORTAR RESULTADOS</button>
                 </div>
 
-                <div class="overflow-x-auto rounded-2xl border shadow-inner bg-gray-50 max-h-[600px]">
+                <div class="overflow-x-auto rounded-2xl border shadow-inner bg-gray-50 max-h-[500px]">
                     <table class="w-full text-left text-[10px] md:text-xs">
                         <thead class="bg-slate-800 text-white font-bold sticky top-0">
                             <tr>
@@ -56,7 +70,6 @@
                                 <th class="p-3">CANT (T/E/P/C)</th>
                                 <th class="p-3">CLIENTE</th>
                                 <th class="p-3">ALERTA</th>
-                                <th class="p-3">HORA</th>
                             </tr>
                         </thead>
                         <tbody id="admin-table-body" class="divide-y font-medium"></tbody>
@@ -66,47 +79,25 @@
         </div>
 
         <div id="view-asistente" class="hidden max-w-md mx-auto p-4">
-            <div class="bg-slate-900 rounded-[2.5rem] p-6 shadow-2xl min-h-[90vh] text-white border-4 border-slate-800">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-orange-500 font-black tracking-widest italic uppercase">Modo Pistoleo</h2>
-                    <div class="h-3 w-3 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_#22c55e]"></div>
-                </div>
-                
-                <div id="qr-reader" class="rounded-3xl overflow-hidden border-4 border-slate-700 bg-black mb-6 shadow-2xl"></div>
-
-                <div id="scan-result" class="hidden animate-in fade-in slide-in-from-bottom-4 duration-500 p-6 rounded-3xl bg-slate-800 border-t-8 border-slate-600">
-                    <p id="res-lpn" class="text-4xl font-black mb-4 tracking-tighter text-center text-white"></p>
-                    
+            <div class="bg-slate-900 rounded-[2.5rem] p-6 shadow-2xl min-h-[90vh] text-white">
+                <h2 class="text-orange-500 font-black text-center mb-6 tracking-widest italic uppercase">Modo Pistoleo</h2>
+                <div id="qr-reader" class="rounded-3xl overflow-hidden border-4 border-slate-700 bg-black mb-6"></div>
+                <div id="scan-result" class="hidden p-6 rounded-3xl bg-slate-800 border-t-8 border-slate-600">
+                    <p id="res-lpn" class="text-4xl font-black mb-4 tracking-tighter text-center"></p>
                     <div class="grid grid-cols-2 gap-3 text-[10px] uppercase font-bold text-slate-400 mb-4">
-                        <div class="bg-slate-700/50 p-3 rounded-xl">
-                            <p>Despacho</p>
-                            <p id="res-est-des" class="text-white text-xs mt-1"></p>
-                        </div>
-                        <div class="bg-slate-700/50 p-3 rounded-xl">
-                            <p>Retiro</p>
-                            <p id="res-est-ret" class="text-white text-xs mt-1"></p>
-                        </div>
-                        <div class="bg-slate-700/50 p-3 rounded-xl">
-                            <p>Canal</p>
-                            <p id="res-canal" class="text-white text-xs mt-1"></p>
-                        </div>
-                        <div class="bg-slate-700/50 p-3 rounded-xl">
-                            <p>Modalidad</p>
-                            <p id="res-mod" class="text-white text-xs mt-1"></p>
-                        </div>
+                        <div class="bg-slate-700/50 p-2 rounded-lg"><p>Despacho</p><p id="res-est-des" class="text-white text-xs"></p></div>
+                        <div class="bg-slate-700/50 p-2 rounded-lg"><p>Retiro</p><p id="res-est-ret" class="text-white text-xs"></p></div>
+                        <div class="bg-slate-700/50 p-2 rounded-lg"><p>Canal</p><p id="res-canal" class="text-white text-xs"></p></div>
+                        <div class="bg-slate-700/50 p-2 rounded-lg"><p>Modalidad</p><p id="res-mod" class="text-white text-xs"></p></div>
                     </div>
-
-                    <div id="res-alerta-box" class="p-4 rounded-2xl text-center font-black text-xl mb-4 shadow-lg border-2 border-white/10"></div>
-                    
-                    <button onclick="confirmarYEnviar()" class="w-full bg-blue-600 text-white py-5 rounded-2xl font-black shadow-xl active:scale-95 transition-transform">AGREGAR HALLAZGO</button>
+                    <div id="res-alerta-box" class="p-4 rounded-2xl text-center font-black text-xl mb-4"></div>
+                    <button id="btnConfirmar" onclick="confirmarYEnviar()" class="w-full bg-blue-600 text-white py-5 rounded-2xl font-black shadow-xl active:scale-95">AGREGAR HALLAZGO</button>
                 </div>
             </div>
         </div>
-
     </main>
 
     <script>
-        // 1. CONFIGURACIÓN FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyBgLkFSNiWi9hv8YDTN7nWlxAkVndWiRaU",
             authDomain: "barrido-picking-rihanna.firebaseapp.com",
@@ -116,18 +107,13 @@
             messagingSenderId: "461017422852",
             appId: "1:461017422852:web:8b85f2316643c8dc676951"
         };
-
-        // Inicialización correcta para versión COMPAT
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // 2. RECURSOS DE AUDIO
         const sndBeep = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-software-interface-start-2574.mp3');
         const sndAlert = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-urgent-simple-beep-notification-1572.mp3');
-
         let currentMatches = [];
 
-        // 3. CONTROL DE VISTAS
         function initApp(role) {
             document.getElementById('role-selector').classList.add('hidden');
             document.getElementById('main-content').classList.remove('hidden');
@@ -140,10 +126,9 @@
             }
         }
 
-        // 4. LÓGICA ASISTENTE: ESCÁNER Y CRUCE
         function iniciarEscaner() {
             const html5QrCode = new Html5Qrcode("qr-reader");
-            html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: {width: 250, height: 180} }, onScanSuccess);
+            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScanSuccess);
         }
 
         async function onScanSuccess(decodedText) {
@@ -151,87 +136,98 @@
             if (window.lastLpn === lpn) return;
             window.lastLpn = lpn;
             sndBeep.play();
-
             const snap = await db.ref('masterDAD').once('value');
             const data = snap.val() || [];
-
-            // Buscar todos los SKUs asociados a ese LPN
             currentMatches = data.filter(i => String(i.LPN || "").trim() === lpn);
-
             const resDiv = document.getElementById('scan-result');
             resDiv.classList.remove('hidden');
             document.getElementById('res-lpn').innerText = lpn;
 
             if (currentMatches.length === 0) {
-                mostrarAlertaAsistente("NO FIGURA EN DAD", "bg-gray-600");
+                mostrarAlertaAsistente("NO FIGURA", "bg-gray-600");
             } else {
-                const principal = currentMatches[0];
-                document.getElementById('res-est-des').innerText = principal["Estado de despacho"] || "N/A";
-                document.getElementById('res-est-ret').innerText = principal["Estado de retiro"] || "N/A";
-                document.getElementById('res-canal').innerText = principal["Canal de venta"] || "N/A";
-                document.getElementById('res-mod').innerText = principal["Modalidad de despacho"] || "N/A";
-
-                // Lógica de Alertas Automáticas
-                const estDes = String(principal["Estado de despacho"] || "").toUpperCase();
-                const fEntStr = principal["Fecha original de entrega"];
-                const fEnt = new Date(fEntStr);
+                const p = currentMatches[0];
+                document.getElementById('res-est-des').innerText = p["Estado de despacho"] || "N/A";
+                document.getElementById('res-est-ret').innerText = p["Estado de retiro"] || "N/A";
+                document.getElementById('res-canal').innerText = p["Canal de venta"] || "N/A";
+                document.getElementById('res-mod').innerText = p["Modalidad de despacho"] || "N/A";
+                const estDes = String(p["Estado de despacho"]).toUpperCase();
+                const fEnt = new Date(p["Fecha original de entrega"]);
                 const hoy = new Date();
-                const diasDeRetraso = Math.floor((hoy - fEnt) / 86400000);
-
-                let alerta = "VALIDO";
-                let color = "bg-green-600";
-
-                if(estDes.includes("CANCELADO")) { alerta = "RETIRAR: CANCELADO"; color = "bg-red-600"; sndAlert.play(); }
-                else if(estDes.includes("ENTREGADO")) { alerta = "RETIRAR: ENTREGADO"; color = "bg-red-600"; sndAlert.play(); }
-                else if(diasDeRetraso > 7) { alerta = "RETIRAR: +" + diasDeRetraso + " DÍAS"; color = "bg-red-600"; sndAlert.play(); }
-
+                const dias = Math.floor((hoy - fEnt) / 86400000);
+                let alerta = "VALIDO"; let color = "bg-green-600";
+                if(estDes.includes("CANCELADO") || estDes.includes("ENTREGADO") || dias > 7) {
+                    alerta = estDes.includes("CANCEL") ? "RETIRAR: CANCELADO" : (dias > 7 ? "RETIRAR: +7 DÍAS" : "RETIRAR: ENTREGADO");
+                    color = "bg-red-600"; sndAlert.play();
+                }
                 mostrarAlertaAsistente(alerta, color);
             }
         }
 
         function mostrarAlertaAsistente(txt, cls) {
             const box = document.getElementById('res-alerta-box');
-            box.innerText = txt;
-            box.className = "p-4 rounded-2xl text-center font-black text-xl mb-4 text-white " + cls;
+            box.innerText = txt; box.className = "p-4 rounded-2xl text-center font-black text-xl mb-4 text-white " + cls;
         }
 
         function confirmarYEnviar() {
-            if (currentMatches.length === 0) return alert("Error: LPN no encontrado en base.");
-
+            if (currentMatches.length === 0) return;
+            const btn = document.getElementById('btnConfirmar');
+            btn.disabled = true; btn.innerText = "ENVIANDO...";
+            
             currentMatches.forEach(m => {
                 db.ref('barridoActual').push({
-                    lpn: m.LPN,
-                    estDes: m["Estado de despacho"],
-                    estRet: m["Estado de retiro"],
-                    nv: m["Código de N/V"],
-                    sku: m.SKU,
-                    desc: m.Descripción,
-                    cantT: m["Cantidad total"],
-                    cantE: m["Cantidad entregada"],
+                    lpn: m.LPN, estDes: m["Estado de despacho"], estRet: m["Estado de retiro"],
+                    nv: m["Código de N/V"], sku: m.SKU, desc: m.Descripción,
+                    cantT: m["Cantidad total"], cantE: m["Cantidad entregada"],
                     cantP: m["cantidad pendiente"] || (m["Cantidad total"] - m["Cantidad entregada"]),
-                    cantC: m["Cantidad cancelada"] || 0,
-                    cliente: m["Nombre de cliente"],
+                    cantC: m["Cantidad cancelada"] || 0, cliente: m["Nombre de cliente"],
                     alerta: document.getElementById('res-alerta-box').innerText,
                     time: new Date().toLocaleTimeString()
                 });
             });
-
-            alert("Hallazgo enviado al Panel Admin");
-            document.getElementById('scan-result').classList.add('hidden');
-            window.lastLpn = "";
+            setTimeout(() => {
+                btn.disabled = false; btn.innerText = "AGREGAR HALLAZGO";
+                document.getElementById('scan-result').classList.add('hidden');
+                window.lastLpn = "";
+            }, 500);
         }
 
-        // 5. LÓGICA ADMINISTRADOR
+        // LÓGICA DE CARGA CON BARRA DE PROGRESO
         function uploadToCloud() {
             const file = document.getElementById('excelFile').files[0];
-            if(!file) return alert("Selecciona el archivo Excel primero.");
-            
+            if(!file) return alert("Selecciona un archivo");
+
+            const ui = document.getElementById('uploading-ui');
+            const bar = document.getElementById('progress-bar');
+            const status = document.getElementById('admin-status');
+            const btn = document.getElementById('btnUpload');
+
+            ui.classList.remove('hidden');
+            bar.style.width = "20%";
+            btn.disabled = true;
+            status.innerText = "";
+
             const reader = new FileReader();
             reader.onload = (e) => {
-                const wb = XLSX.read(e.target.result, { type: 'binary', cellDates: true });
-                const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
-                db.ref('masterDAD').set(json);
-                document.getElementById('admin-status').innerText = "✅ Sincronización Exitosa: " + json.length + " pedidos en nube.";
+                bar.style.width = "50%";
+                try {
+                    const wb = XLSX.read(e.target.result, { type: 'binary', cellDates: true });
+                    const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
+                    bar.style.width = "80%";
+                    
+                    db.ref('masterDAD').set(json).then(() => {
+                        bar.style.width = "100%";
+                        setTimeout(() => {
+                            ui.classList.add('hidden');
+                            status.innerText = "✅ ¡Éxito! Base de datos sincronizada (" + json.length + " registros).";
+                            btn.disabled = false;
+                        }, 800);
+                    });
+                } catch (err) {
+                    alert("Error al procesar el Excel");
+                    ui.classList.add('hidden');
+                    btn.disabled = false;
+                }
             };
             reader.readAsBinaryString(file);
         }
@@ -239,18 +235,14 @@
         function escucharBarrido() {
             db.ref('barridoActual').on('child_added', (snap) => {
                 const v = snap.val();
-                const esRetiro = v.alerta.includes('RETIRAR');
-                const row = `<tr class="${esRetiro ? 'bg-red-100 text-red-900 animate-pulse' : 'bg-white'} border-b border-slate-200">
-                    <td class="p-3 font-mono font-bold">${v.lpn}</td>
-                    <td class="p-3">${v.estDes}</td>
-                    <td class="p-3">${v.estRet}</td>
-                    <td class="p-3 font-bold">${v.nv}</td>
-                    <td class="p-3 text-blue-700 font-bold">${v.sku}</td>
-                    <td class="p-3 text-[9px] max-w-[150px] truncate">${v.desc}</td>
-                    <td class="p-3 font-bold text-center">${v.cantT}/${v.cantE}/${v.cantP}/${v.cantC}</td>
-                    <td class="p-3 text-slate-500">${v.cliente}</td>
-                    <td class="p-3 font-black text-xs uppercase">${v.alerta}</td>
-                    <td class="p-3 text-slate-400 text-[9px]">${v.time}</td>
+                const row = `<tr class="${v.alerta.includes('RETIRAR') ? 'bg-red-100' : ''}">
+                    <td class="p-3 border-b font-mono font-bold">${v.lpn}</td>
+                    <td class="p-3 border-b">${v.estDes}</td><td class="p-3 border-b">${v.estRet}</td>
+                    <td class="p-3 border-b font-bold">${v.nv}</td><td class="p-3 border-b text-blue-700">${v.sku}</td>
+                    <td class="p-3 border-b text-[9px] max-w-[150px] truncate">${v.desc}</td>
+                    <td class="p-3 border-b font-bold">${v.cantT}/${v.cantE}/${v.cantP}/${v.cantC}</td>
+                    <td class="p-3 border-b text-gray-500">${v.cliente}</td>
+                    <td class="p-3 border-b font-black text-red-600">${v.alerta}</td>
                 </tr>`;
                 document.getElementById('admin-table-body').insertAdjacentHTML('afterbegin', row);
             });
@@ -258,13 +250,11 @@
 
         function exportToExcel() {
             db.ref('barridoActual').once('value', s => {
-                const val = s.val();
-                if(!val) return alert("Aún no hay pistoleos realizados.");
-                const data = Object.values(val);
-                const ws = XLSX.utils.json_to_sheet(data);
+                if(!s.val()) return alert("No hay datos");
+                const ws = XLSX.utils.json_to_sheet(Object.values(s.val()));
                 const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, "Resultado_Barrido");
-                XLSX.writeFile(wb, "Barrido_Logistica_" + new Date().toLocaleDateString() + ".xlsx");
+                XLSX.utils.book_append_sheet(wb, ws, "Reporte");
+                XLSX.writeFile(wb, "Barrido_Picking.xlsx");
             });
         }
     </script>
