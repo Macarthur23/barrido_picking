@@ -203,26 +203,41 @@
             if (window.matches.length === 0) {
                 container.innerHTML = `<div class="p-4 text-center font-bold text-slate-500 text-xs">NO FIGURA EN MAESTRA</div>`;
             } else {
-                let maxD = 0;
+                let maxCritDelay = 0;
+                let hayAlertaCritica = false;
+
                 window.matches.forEach(m => {
                     const d = calcularRetraso(m.Fecha);
-                    if (d > maxD) maxD = d;
+                    const est = m.EstDes.toUpperCase();
+                    
+                    // Lógica selectiva de alerta
+                    let critico = false;
+                    if (est.includes("RECOJO CLIENTE") && d > 7) critico = true;
+                    if (est.includes("DESPACHO CLIENTE") && d > 2) critico = true;
+                    
+                    if(critico) {
+                        hayAlertaCritica = true;
+                        if(d > maxCritDelay) maxCritDelay = d;
+                    }
+
                     container.insertAdjacentHTML('beforeend', `
-                        <div class="sku-card p-2 rounded-xl mb-1 border-l-4 ${d > 0 ? 'border-red-500' : 'border-blue-500'}">
+                        <div class="sku-card p-2 rounded-xl mb-1 border-l-4 ${critico ? 'border-red-500' : 'border-blue-500'}">
                             <div class="flex justify-between items-center mb-1">
                                 <span class="text-blue-400 font-black text-[10px]">SKU: ${m.SKU}</span>
-                                <span class="text-[9px] text-slate-400">Cant: ${m.CantT}</span>
+                                <span class="text-[9px] text-slate-400 font-bold">${d}d retraso</span>
                             </div>
                             <div class="grid grid-cols-2 gap-1">
-                                <div><p class="text-[7px] text-slate-500 uppercase font-bold">Despacho</p><p class="text-[9px] font-bold">${m.EstDes}</p></div>
+                                <div><p class="text-[7px] text-slate-500 uppercase font-bold">Despacho</p><p class="text-[9px] font-bold ${critico ? 'text-red-400' : ''}">${m.EstDes}</p></div>
                                 <div><p class="text-[7px] text-slate-500 uppercase font-bold">Retiro</p><p class="text-[9px] font-bold text-orange-200">${m.EstRet}</p></div>
                             </div>
                         </div>`);
                 });
                 
-                banner.innerHTML = maxD > 0 
-                    ? `<div class="delay-alert bg-red-600 text-white p-2 rounded-xl text-center font-black text-sm uppercase italic">⚠️ RETRASO: ${maxD} DÍAS</div>`
-                    : `<div class="bg-slate-700 text-emerald-400 p-2 rounded-xl text-center font-black text-[10px] uppercase">✓ A TIEMPO</div>`;
+                if(hayAlertaCritica) {
+                    banner.innerHTML = `<div class="delay-alert bg-red-600 text-white p-2 rounded-xl text-center font-black text-sm uppercase italic">⚠️ ALERTA CRÍTICA: ${maxCritDelay} DÍAS</div>`;
+                } else {
+                    banner.innerHTML = `<div class="bg-slate-700 text-emerald-400 p-2 rounded-xl text-center font-black text-[10px] uppercase tracking-widest">ESTADO NORMAL</div>`;
+                }
             }
         }
 
