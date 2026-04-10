@@ -16,6 +16,8 @@
         #res-lpn { word-break: break-all; line-height: 1.1; }
         .text-min { font-size: 10px; line-height: 1.2; font-weight: 800; }
         .sku-card { background: rgba(255,255,255,0.05); border-left: 3px solid #3b82f6; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
     </style>
 </head>
 <body class="bg-slate-50 font-sans">
@@ -51,7 +53,7 @@
                 <div class="overflow-x-auto rounded-2xl border border-slate-200">
                     <table class="w-full text-left text-[11px]">
                         <thead class="bg-slate-800 text-white font-bold uppercase">
-                            <tr><th class="p-4">LPN / CTN</th><th class="p-4">SKU</th><th class="p-4">Est. Despacho</th><th class="p-4">Est. Retiro</th><th class="p-4">Cantidades</th><th class="p-4">Hora</th></tr>
+                            <tr><th class="p-4">LPN / CTN</th><th class="p-4">SKU</th><th class="p-4">Retraso</th><th class="p-4">Est. Despacho</th><th class="p-4">Est. Retiro</th><th class="p-4">Cantidades</th><th class="p-4">Hora</th></tr>
                         </thead>
                         <tbody id="admin-table-body" class="divide-y divide-slate-100 italic font-medium"></tbody>
                     </table>
@@ -75,8 +77,7 @@
                     <div class="bg-slate-800 p-5 rounded-[2.5rem] border-t-4 border-slate-500 text-white">
                         <p id="res-lpn" class="text-2xl font-black text-center mb-5 italic text-blue-400 uppercase"></p>
                         
-                        <div id="sku-container" class="space-y-3 mb-6 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-                            </div>
+                        <div id="sku-container" class="space-y-3 mb-6 max-h-60 overflow-y-auto pr-2 custom-scrollbar"></div>
 
                         <button onclick="confirmarYEnviar()" class="w-full bg-emerald-600 py-6 rounded-3xl font-black text-xl shadow-2xl active:scale-95 transition italic uppercase tracking-tighter">Registrar en Admin</button>
                     </div>
@@ -97,6 +98,16 @@
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
+
+        function calcularRetraso(fechaExcel) {
+            if (!fechaExcel) return "0";
+            const hoy = new Date();
+            const fechaEntrega = new Date(fechaExcel);
+            if (isNaN(fechaEntrega.getTime())) return "0";
+            const diff = hoy - fechaEntrega;
+            const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
+            return dias > 0 ? dias : 0;
+        }
 
         function initApp(role) {
             document.getElementById('role-selector').classList.add('hidden');
@@ -151,6 +162,7 @@
                     Mod: String(r["Modalidad de despacho"] || "").trim(),
                     Canal: String(r["Canal de venta"] || "").trim(),
                     SKU: String(r["SKU"] || "").trim(),
+                    Fecha: r["Fecha de entrega"] || r["Fecha comprometida"] || "",
                     CantP: String(r["Cantidad pendiente"] || "0"),
                     CantT: String(r["Cantidad total"] || "0"),
                     CantE: String(r["Cantidad entregada"] || "0")
@@ -184,24 +196,21 @@
             document.getElementById('res-lpn').innerText = lpn;
 
             if (window.matches.length === 0) {
-                container.innerHTML = `<div class="p-4 text-center font-bold text-slate-400">EL LPN NO FIGURA EN EL REPORTE</div>`;
+                container.innerHTML = `<div class="p-4 text-center font-bold text-slate-400">NO FIGURA EN REPORTE</div>`;
             } else {
                 window.matches.forEach(m => {
+                    const dias = calcularRetraso(m.Fecha);
                     const html = `
                         <div class="sku-card p-3 rounded-xl mb-2">
-                            <div class="flex justify-between items-start mb-2">
-                                <span class="text-blue-400 font-black text-xs uppercase tracking-tighter">SKU: ${m.SKU}</span>
-                                <span class="text-[10px] text-slate-400 font-bold">Cant: ${m.CantT}</span>
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-blue-400 font-black text-xs uppercase">SKU: ${m.SKU}</span>
+                                <span class="${dias > 0 ? 'bg-red-600' : 'bg-slate-700'} text-white text-[9px] px-2 py-0.5 rounded-full font-black">
+                                    RETRASO: ${dias} DÍAS
+                                </span>
                             </div>
                             <div class="grid grid-cols-2 gap-2">
-                                <div>
-                                    <p class="text-[8px] text-slate-500 uppercase font-bold">Despacho</p>
-                                    <p class="text-min">${m.EstDes}</p>
-                                </div>
-                                <div>
-                                    <p class="text-[8px] text-slate-500 uppercase font-bold">Retiro</p>
-                                    <p class="text-min text-orange-200">${m.EstRet}</p>
-                                </div>
+                                <div><p class="text-[8px] text-slate-500 uppercase font-bold">Despacho</p><p class="text-min">${m.EstDes}</p></div>
+                                <div><p class="text-[8px] text-slate-500 uppercase font-bold">Retiro</p><p class="text-min text-orange-200">${m.EstRet}</p></div>
                             </div>
                         </div>`;
                     container.insertAdjacentHTML('beforeend', html);
@@ -210,10 +219,11 @@
         }
 
         function confirmarYEnviar() {
-            if(!window.matches || window.matches.length === 0) return alert("Sin datos");
+            if(!window.matches || window.matches.length === 0) return;
             window.matches.forEach(m => {
                 db.ref('barridoActual').push({
                     lpn: m.LPN, estDes: m.EstDes, estRet: m.EstRet, sku: m.SKU,
+                    retraso: calcularRetraso(m.Fecha),
                     cant: `${m.CantT}/${m.CantE}/${m.CantP}`,
                     time: new Date().toLocaleTimeString()
                 });
@@ -228,6 +238,7 @@
                 const row = `<tr class="bg-white">
                     <td class="p-4 border-b font-mono font-black">${v.lpn}</td>
                     <td class="p-4 border-b text-blue-600 font-bold">${v.sku}</td>
+                    <td class="p-4 border-b text-center font-black ${v.retraso > 0 ? 'text-red-600' : 'text-slate-400'}">${v.retraso}d</td>
                     <td class="p-4 border-b uppercase">${v.estDes}</td>
                     <td class="p-4 border-b uppercase text-orange-600">${v.estRet}</td>
                     <td class="p-4 border-b text-center font-bold text-slate-500">${v.cant}</td>
