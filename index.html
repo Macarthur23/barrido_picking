@@ -2,186 +2,241 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Cruce Picking vs DAD - Detalle Completo</title>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barrido de Picking - Control Total</title>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        .table-container { max-height: 500px; overflow-y: auto; }
-        th { sticky top: 0; background: #f3f4f6; z-index: 10; }
-    </style>
 </head>
-<body class="bg-slate-50 p-4 md:p-8">
-    <div class="max-w-full mx-auto bg-white shadow-2xl rounded-2xl p-6">
-        <header class="mb-8 border-b pb-4">
-            <h1 class="text-3xl font-black text-slate-800">Conciliador DAD Pro</h1>
-            <p class="text-slate-500 italic">Cruce masivo con detalle de despacho y estados</p>
-        </header>
+<body class="bg-slate-100 font-sans">
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div class="p-4 border-2 border-dashed border-blue-200 rounded-xl bg-blue-50">
-                <label class="block font-bold text-blue-700 mb-2">📥 1. Formulario de Pistoleo (LPN)</label>
-                <input type="file" id="fileP" class="w-full text-sm">
-            </div>
-            <div class="p-4 border-2 border-dashed border-green-200 rounded-xl bg-green-50">
-                <label class="block font-bold text-green-700 mb-2">📥 2. Reporte Maestro DAD</label>
-                <input type="file" id="fileD" class="w-full text-sm">
-            </div>
-        </div>
+<div id="role-selector" class="fixed inset-0 bg-slate-900 z-50 flex flex-col items-center justify-center space-y-6">
+    <h1 class="text-white text-2xl font-black italic uppercase tracking-widest text-center px-4">Logística: Barrido de Picking</h1>
+    <div class="flex flex-col space-y-4 w-64">
+        <button onclick="initApp('admin')" class="bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg transition active:scale-95">ADMINISTRADOR</button>
+        <button onclick="initApp('asistente')" class="bg-orange-600 text-white font-bold py-4 rounded-2xl shadow-lg transition active:scale-95">ASISTENTE (CÁMARA)</button>
+    </div>
+</div>
 
-        <button onclick="procesarTodo()" class="w-full bg-slate-800 hover:bg-black text-white font-bold py-4 rounded-xl shadow-lg transition mb-6">
-            GENERAR CRUCE Y DASHBOARD
-        </button>
+<main id="main-content" class="hidden">
 
-        <div id="status" class="text-center mb-4 font-bold text-blue-600"></div>
+    <div id="view-admin" class="hidden max-w-[95%] mx-auto p-4 md:p-8">
+        <div class="bg-white rounded-3xl shadow-xl p-6">
+            <h2 class="text-2xl font-black text-slate-800 mb-6 border-b pb-4">Consola de Control de Barrido</h2>
 
-        <div id="resultArea" class="hidden">
-            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-                <div class="bg-red-50 p-4 rounded-lg border border-red-200 text-center">
-                    <p class="text-xs font-bold text-red-500 uppercase">Cancelados</p>
-                    <p id="cCan" class="text-2xl font-black">0</p>
+            <div class="bg-blue-50 border-2 border-dashed border-blue-200 p-6 rounded-2xl mb-8">
+                <p class="font-bold text-blue-800 mb-3">Subir Maestro DAD Actualizado</p>
+                <div class="flex flex-wrap gap-4">
+                    <input type="file" id="excelFile" class="text-sm bg-white p-2 rounded-lg border">
+                    <button onclick="uploadToCloud()" class="bg-blue-600 text-white px-8 py-2 rounded-xl font-bold hover:bg-blue-700">SINCRONIZAR NUBE</button>
                 </div>
-                <div class="bg-orange-50 p-4 rounded-lg border border-orange-200 text-center">
-                    <p class="text-xs font-bold text-orange-500 uppercase">Entregados</p>
-                    <p id="cEnt" class="text-2xl font-black">0</p>
-                </div>
-                <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200 text-center">
-                    <p class="text-xs font-bold text-yellow-500 uppercase">Con Retraso</p>
-                    <p id="cRet" class="text-2xl font-black">0</p>
-                </div>
-                <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 text-center">
-                    <p class="text-xs font-bold text-blue-500 uppercase">Total Items</p>
-                    <p id="cTot" class="text-2xl font-black">0</p>
-                </div>
-                <button onclick="exportarExcel()" class="bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md">
-                    Descargar Excel
-                </button>
             </div>
 
-            <h2 class="text-lg font-bold text-slate-700 mb-3">Previsualización (Top 50)</h2>
-            <div class="table-container border rounded-lg shadow-inner bg-white">
-                <table class="w-full text-xs text-left">
-                    <thead>
-                        <tr class="bg-slate-100 border-b">
-                            <th class="p-3">LPN</th>
-                            <th class="p-3">Estado Despacho</th>
-                            <th class="p-3">Cliente</th>
-                            <th class="p-3">NV</th>
-                            <th class="p-3">SKU</th>
-                            <th class="p-3">Modalidad</th>
-                            <th class="p-3">Días Retraso</th>
-                        </tr>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-black text-slate-700 uppercase italic">Registro de Pistoleo en Tiempo Real</h3>
+                <button onclick="exportToExcel()" class="bg-green-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-green-700">DESCARGAR EXCEL FINAL</button>
+            </div>
+
+            <div class="overflow-x-auto rounded-2xl border shadow-inner bg-gray-50">
+                <table class="w-full text-left text-[10px] md:text-xs">
+                    <thead class="bg-slate-200 text-slate-700 font-black sticky top-0">
+                    <tr>
+                        <th class="p-3">LPN</th>
+                        <th class="p-3">EST. DESPACHO</th>
+                        <th class="p-3">EST. RETIRO</th>
+                        <th class="p-3">NV</th>
+                        <th class="p-3">SKU</th>
+                        <th class="p-3">DESCRIPCIÓN</th>
+                        <th class="p-3">CANT (T/E/P/C)</th>
+                        <th class="p-3">CLIENTE</th>
+                        <th class="p-3">ALERTA</th>
+                    </tr>
                     </thead>
-                    <tbody id="tBody" class="divide-y"></tbody>
+                    <tbody id="admin-table-body" class="divide-y"></tbody>
                 </table>
             </div>
         </div>
     </div>
 
-    <script>
-        let dataExport = [];
+    <div id="view-asistente" class="hidden max-w-md mx-auto p-4">
+        <div class="bg-slate-900 rounded-[2.5rem] p-6 shadow-2xl min-h-[90vh] text-white">
+            <h2 class="text-orange-500 font-black text-center mb-6 tracking-widest italic uppercase">Modo Pistoleo</h2>
 
-        function findCol(row, keywords) {
-            const keys = Object.keys(row);
-            for (let k of keys) {
-                const cleanK = k.toLowerCase().trim();
-                if (keywords.some(kw => cleanK.includes(kw.toLowerCase()))) return row[k];
-            }
-            return "";
+            <div id="qr-reader" class="rounded-3xl overflow-hidden border-4 border-slate-700 bg-black mb-6"></div>
+
+            <div id="scan-result" class="hidden animate-in fade-in duration-500 p-6 rounded-3xl bg-slate-800 border-t-8 border-slate-600">
+                <p id="res-lpn" class="text-4xl font-black mb-4 tracking-tighter text-center"></p>
+
+                <div class="grid grid-cols-2 gap-3 text-[10px] uppercase font-bold text-slate-400 mb-4">
+                    <div class="bg-slate-700/50 p-2 rounded-lg">
+                        <p>Despacho</p>
+                        <p id="res-est-des" class="text-white text-xs"></p>
+                    </div>
+                    <div class="bg-slate-700/50 p-2 rounded-lg">
+                        <p>Retiro</p>
+                        <p id="res-est-ret" class="text-white text-xs"></p>
+                    </div>
+                    <div class="bg-slate-700/50 p-2 rounded-lg">
+                        <p>Canal</p>
+                        <p id="res-canal" class="text-white text-xs"></p>
+                    </div>
+                    <div class="bg-slate-700/50 p-2 rounded-lg">
+                        <p>Modalidad</p>
+                        <p id="res-mod" class="text-white text-xs"></p>
+                    </div>
+                </div>
+
+                <div id="res-alerta-box" class="p-4 rounded-2xl text-center font-black text-xl mb-4"></div>
+
+                <button onclick="confirmarYEnviar()" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-black shadow-lg active:bg-blue-800">AGREGAR AL PANEL ADMIN</button>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    // CONFIGURACIÓN FIREBASE (REEMPLAZAR)
+    const firebaseConfig = { apiKey: "AIza...", databaseURL: "https://...", projectId: "..." };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const sndBeep = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-software-interface-start-2574.mp3');
+    const sndAlert = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-urgent-simple-beep-notification-1572.mp3');
+
+    let currentMatches = []; // Para guardar temporalmente los productos de la misma NV
+
+    function initApp(role) {
+        document.getElementById('role-selector').classList.add('hidden');
+        document.getElementById('main-content').classList.remove('hidden');
+        if(role === 'admin') {
+            document.getElementById('view-admin').classList.remove('hidden');
+            escucharBarrido();
+        } else {
+            document.getElementById('view-asistente').classList.remove('hidden');
+            iniciarEscaner();
         }
+    }
 
-        async function readExcel(file) {
-            return new Promise(res => {
-                const reader = new FileReader();
-                reader.onload = e => {
-                    const wb = XLSX.read(e.target.result, { type: 'binary', cellDates: true });
-                    res(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" }));
-                };
-                reader.readAsBinaryString(file);
-            });
-        }
+    function iniciarEscaner() {
+        const html5QrCode = new Html5Qrcode("qr-reader");
+        html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScanSuccess);
+    }
 
-        async function procesarTodo() {
-            const fP = document.getElementById('fileP').files[0];
-            const fD = document.getElementById('fileD').files[0];
-            if(!fP || !fD) return alert("Sube ambos archivos");
+    async function onScanSuccess(decodedText) {
+        const lpn = decodedText.trim();
+        if (window.lastLpn === lpn) return;
+        window.lastLpn = lpn;
+        sndBeep.play();
 
-            document.getElementById('status').innerText = "Procesando...";
-            const dataP = await readExcel(fP);
-            const dataD = await readExcel(fD);
-            
-            dataExport = [];
-            let counts = { can: 0, ent: 0, ret: 0 };
+        const snap = await db.ref('masterDAD').once('value');
+        const data = snap.val() || [];
+
+        // Buscar todos los productos que tengan el mismo LPN
+        currentMatches = data.filter(i => String(i.LPN || "").trim().includes(lpn));
+
+        const resDiv = document.getElementById('scan-result');
+        resDiv.classList.remove('hidden');
+        document.getElementById('res-lpn').innerText = lpn;
+
+        if (currentMatches.length === 0) {
+            mostrarAlertaAsistente("NO FIGURA", "bg-gray-600");
+        } else {
+            const principal = currentMatches[0]; // Usamos el primer item para estados generales
+            document.getElementById('res-est-des').innerText = principal["Estado de despacho"] || "N/A";
+            document.getElementById('res-est-ret').innerText = principal["Estado de retiro"] || "N/A";
+            document.getElementById('res-canal').innerText = principal["Canal de venta"] || "N/A";
+            document.getElementById('res-mod').innerText = principal["Modalidad de despacho"] || "N/A";
+
+            // Lógica de Alertas de Retiro
+            const estDes = String(principal["Estado de despacho"]).toUpperCase();
+            const fEnt = new Date(principal["Fecha original de entrega"]);
             const hoy = new Date();
+            const dias = Math.floor((hoy - fEnt) / 86400000);
 
-            const lpns = [...new Set(dataP.map(p => String(findCol(p, ["LPN"])).trim()))].filter(l => l !== "");
+            let alerta = "VÁLIDO";
+            let color = "bg-green-600";
 
-            lpns.forEach(lpn => {
-                const matches = dataD.filter(d => String(findCol(d, ["LPN"])).trim() === lpn);
-                
-                if(matches.length === 0) {
-                    dataExport.push({ LPN: lpn, "Estado de despacho": "NO ENCONTRADO EN DAD" });
-                } else {
-                    matches.forEach(m => {
-                        const fOrig = findCol(m, ["Fecha original", "Fecha de entrega"]);
-                        let dias = (fOrig instanceof Date) ? Math.floor((hoy - fOrig)/86400000) : 0;
-                        const est = String(findCol(m, ["Estado de despacho", "Estado"])).trim();
-                        
-                        const item = {
-                            "LPN": lpn,
-                            "Estado de despacho": est,
-                            "Fecha original de entrega": fOrig instanceof Date ? fOrig.toLocaleDateString() : fOrig,
-                            "Código de N/V": findCol(m, ["N/V", "NV", "Venta"]),
-                            "SKU": findCol(m, ["SKU"]),
-                            "Descripción": findCol(m, ["Descripción", "Producto"]),
-                            "Cantidad total": findCol(m, ["Cantidad total", "Cant total"]),
-                            "Cantidad entregada": findCol(m, ["Cantidad entregada", "Cant entregada"]),
-                            "Nombre de cliente": findCol(m, ["Nombre de cliente", "Cliente"]),
-                            "Distrito": findCol(m, ["Distrito"]),
-                            "Dirección de entrega": findCol(m, ["Dirección de entrega", "Dirección"]),
-                            "Modalidad de despacho": findCol(m, ["Modalidad de despacho", "Modalidad"]),
-                            "Canal de venta": findCol(m, ["Canal de venta", "Canal"]),
-                            "Referencia": findCol(m, ["Referencia"]),
-                            "Días de Retraso": dias > 0 ? dias : 0
-                        };
+            if(estDes.includes("CANCELADO")) { alerta = "RETIRAR: CANCELADO"; color = "bg-red-600"; sndAlert.play(); }
+            else if(estDes.includes("ENTREGADO")) { alerta = "RETIRAR: ENTREGADO"; color = "bg-red-600"; sndAlert.play(); }
+            else if(dias > 7) { alerta = "RETIRAR: +7 DÍAS"; color = "bg-red-600"; sndAlert.play(); }
 
-                        if(est.toUpperCase().includes("CANCELADO")) counts.can++;
-                        if(est.toUpperCase().includes("ENTREGADO")) counts.ent++;
-                        if(dias > 0) counts.ret++;
+            mostrarAlertaAsistente(alerta, color);
+        }
+    }
 
-                        dataExport.push(item);
-                    });
-                }
+    function mostrarAlertaAsistente(txt, cls) {
+        const box = document.getElementById('res-alerta-box');
+        box.innerText = txt;
+        box.className = "p-4 rounded-2xl text-center font-black text-xl mb-4 text-white " + cls;
+    }
+
+    function confirmarYEnviar() {
+        if (currentMatches.length === 0) return alert("Nada que enviar");
+
+        currentMatches.forEach(m => {
+            db.ref('barridoActual').push({
+                lpn: m.LPN,
+                estDes: m["Estado de despacho"],
+                estRet: m["Estado de retiro"],
+                nv: m["Código de N/V"],
+                sku: m.SKU,
+                desc: m.Descripción,
+                cantT: m["Cantidad total"],
+                cantE: m["Cantidad entregada"],
+                cantP: m["cantidad pendiente"] || (m["Cantidad total"] - m["Cantidad entregada"]),
+                cantC: m["Cantidad cancelada"] || 0,
+                cliente: m["Nombre de cliente"],
+                alerta: document.getElementById('res-alerta-box').innerText,
+                time: new Date().toLocaleTimeString()
             });
+        });
+        alert("Enviado al Admin");
+        document.getElementById('scan-result').classList.add('hidden');
+        window.lastLpn = "";
+    }
 
-            // UI Update
-            document.getElementById('cCan').innerText = counts.can;
-            document.getElementById('cEnt').innerText = counts.ent;
-            document.getElementById('cRet').innerText = counts.ret;
-            document.getElementById('cTot').innerText = dataExport.length;
-            document.getElementById('resultArea').classList.remove('hidden');
-            document.getElementById('status').innerText = "✅ Cruce Exitoso";
+    // LÓGICA ADMIN
+    function uploadToCloud() {
+        const file = document.getElementById('excelFile').files[0];
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const wb = XLSX.read(e.target.result, { type: 'binary', cellDates: true });
+            const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
+            db.ref('masterDAD').set(json);
+            document.getElementById('admin-status').innerText = "✅ " + json.length + " Registros cargados.";
+        };
+        reader.readAsBinaryString(file);
+    }
 
-            const tb = document.getElementById('tBody');
-            tb.innerHTML = dataExport.slice(0, 50).map(r => `
-                <tr class="${String(r["Estado de despacho"]).includes('Cancelado') ? 'bg-red-50' : ''}">
-                    <td class="p-3 font-mono font-bold">${r.LPN}</td>
-                    <td class="p-3 font-semibold">${r["Estado de despacho"]}</td>
-                    <td class="p-3">${r["Nombre de cliente"]}</td>
-                    <td class="p-3">${r["Código de N/V"]}</td>
-                    <td class="p-3">${r.SKU}</td>
-                    <td class="p-3">${r["Modalidad de despacho"]}</td>
-                    <td class="p-3 text-center">${r["Días de Retraso"]}</td>
-                </tr>
-            `).join('');
-        }
+    function escucharBarrido() {
+        db.ref('barridoActual').on('child_added', (snap) => {
+            const v = snap.val();
+            const row = `<tr class="${v.alerta.includes('RETIRAR') ? 'bg-red-100' : ''}">
+                <td class="p-3 border-b font-mono font-bold">${v.lpn}</td>
+                <td class="p-3 border-b">${v.estDes}</td>
+                <td class="p-3 border-b">${v.estRet}</td>
+                <td class="p-3 border-b font-bold">${v.nv}</td>
+                <td class="p-3 border-b text-blue-700">${v.sku}</td>
+                <td class="p-3 border-b text-[9px] max-w-[150px] truncate">${v.desc}</td>
+                <td class="p-3 border-b font-bold">${v.cantT}/${v.cantE}/${v.cantP}/${v.cantC}</td>
+                <td class="p-3 border-b text-gray-500">${v.cliente}</td>
+                <td class="p-3 border-b font-black text-red-600">${v.alerta}</td>
+            </tr>`;
+            document.getElementById('admin-table-body').insertAdjacentHTML('afterbegin', row);
+        });
+    }
 
-        function exportarExcel() {
-            const ws = XLSX.utils.json_to_sheet(dataExport);
+    function exportToExcel() {
+        db.ref('barridoActual').once('value', s => {
+            const ws = XLSX.utils.json_to_sheet(Object.values(s.val()));
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Cruce_Picking_DAD");
-            XLSX.writeFile(wb, "Reporte_Picking_Detallado.xlsx");
-        }
-    </script>
+            XLSX.utils.book_append_sheet(wb, ws, "Reporte_Barrido");
+            XLSX.writeFile(wb, "Barrido_Final_Picking.xlsx");
+        });
+    }
+</script>
 </body>
 </html>
-
