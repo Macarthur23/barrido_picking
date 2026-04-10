@@ -18,8 +18,8 @@
         .sku-card { background: rgba(255,255,255,0.05); border-left: 3px solid #3b82f6; }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
-        .delay-badge { animation: pulse-red 2s infinite; }
-        @keyframes pulse-red { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+        .delay-alert { animation: pulse-red 1.5s infinite; border: 2px solid #ef4444; }
+        @keyframes pulse-red { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
     </style>
 </head>
 <body class="bg-slate-50 font-sans">
@@ -64,26 +64,26 @@
         </div>
 
         <div id="view-asistente" class="hidden max-w-md mx-auto">
-            <div class="bg-slate-900 rounded-[3rem] p-6 shadow-2xl min-h-[90vh] flex flex-col border-4 border-slate-800">
-                <div class="flex items-center justify-between mb-4 px-2">
+            <div class="bg-slate-900 rounded-[3rem] p-5 shadow-2xl min-h-[90vh] flex flex-col border-4 border-slate-800">
+                <div class="flex items-center justify-between mb-3 px-2">
                     <div class="flex items-center gap-2">
                         <div id="sync-dot" class="h-3 w-3 rounded-full bg-slate-600 animate-pulse"></div>
                         <span id="sync-status-text" class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Verificando...</span>
                     </div>
-                    <span id="sync-count" class="bg-slate-800 text-blue-400 text-[10px] px-3 py-1 rounded-full font-bold border border-slate-700">0 SKU</span>
+                    <span id="sync-count" class="bg-slate-800 text-blue-400 text-[10px] px-3 py-1 rounded-full font-bold border border-slate-700">0 REG</span>
                 </div>
 
-                <div id="qr-reader" class="rounded-[2rem] overflow-hidden border-2 border-slate-700 bg-black mb-6"></div>
+                <div id="qr-reader" class="rounded-[2rem] overflow-hidden border-2 border-slate-700 bg-black mb-4"></div>
                 
-                <div id="scan-result" class="hidden animate-in fade-in slide-in-from-bottom-8 duration-500">
-                    <div class="bg-slate-800 p-5 rounded-[2.5rem] border-t-4 border-slate-500 text-white">
-                        <p id="res-lpn" class="text-2xl font-black text-center mb-1 italic text-blue-400 uppercase"></p>
+                <div id="scan-result" class="hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+                    <div class="bg-slate-800 p-4 rounded-[2rem] border-t-4 border-slate-600 text-white">
+                        <p id="res-lpn" class="text-xl font-black text-center mb-2 italic text-blue-400 uppercase tracking-tight"></p>
                         
-                        <div id="res-retraso-general" class="text-center mb-5"></div>
+                        <div id="res-retraso-banner" class="mb-4"></div>
                         
-                        <div id="sku-container" class="space-y-3 mb-6 max-h-60 overflow-y-auto pr-2 custom-scrollbar"></div>
+                        <div id="sku-container" class="space-y-2 mb-4 max-h-52 overflow-y-auto pr-1 custom-scrollbar"></div>
 
-                        <button onclick="confirmarYEnviar()" class="w-full bg-emerald-600 py-6 rounded-3xl font-black text-xl shadow-2xl active:scale-95 transition italic uppercase tracking-tighter">Registrar en Admin</button>
+                        <button onclick="confirmarYEnviar()" class="w-full bg-emerald-600 py-4 rounded-2xl font-black text-lg shadow-xl active:scale-95 transition italic uppercase tracking-tighter">Registrar en Admin</button>
                     </div>
                 </div>
             </div>
@@ -107,18 +107,9 @@
             if (!fechaExcel) return 0;
             const hoy = new Date();
             hoy.setHours(0,0,0,0);
-            
-            // Procesar fecha de Excel (puede venir como número o string)
-            let fechaEntrega;
-            if (typeof fechaExcel === 'number') {
-                fechaEntrega = new Date((fechaExcel - 25569) * 86400 * 1000);
-            } else {
-                fechaEntrega = new Date(fechaExcel);
-            }
-            
+            let fechaEntrega = (typeof fechaExcel === 'number') ? new Date((fechaExcel - 25569) * 86400 * 1000) : new Date(fechaExcel);
             if (isNaN(fechaEntrega.getTime())) return 0;
             fechaEntrega.setHours(0,0,0,0);
-            
             const diff = hoy - fechaEntrega;
             const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
             return dias > 0 ? dias : 0;
@@ -131,8 +122,7 @@
             else {
                 document.getElementById('view-asistente').classList.remove('hidden');
                 iniciarMonitorSincronizacion();
-                const scanner = new Html5Qrcode("qr-reader");
-                scanner.start({ facingMode: "environment" }, { fps: 20, qrbox: 220 }, onScanSuccess);
+                new Html5Qrcode("qr-reader").start({ facingMode: "environment" }, { fps: 20, qrbox: 220 }, onScanSuccess);
             }
             escucharBarrido();
         }
@@ -141,16 +131,15 @@
             db.ref('masterDAD').on('value', (snap) => {
                 const data = snap.val();
                 if (data) {
-                    const total = Object.keys(data).length;
                     document.getElementById('sync-dot').className = "h-3 w-3 rounded-full bg-emerald-500 glow-sync";
                     document.getElementById('sync-status-text').innerText = "ONLINE";
-                    document.getElementById('sync-count').innerText = `${total} REG`;
+                    document.getElementById('sync-count').innerText = `${Object.keys(data).length} REG`;
                 }
             });
         }
 
         async function limpiarBaseDeDatos() {
-            if(confirm("¿Borrar base actual e historial?")) {
+            if(confirm("¿Borrar todo?")) {
                 await db.ref('masterDAD').set(null);
                 await db.ref('barridoActual').set(null);
                 location.reload();
@@ -177,11 +166,10 @@
                     Mod: String(r["Modalidad de despacho"] || "").trim(),
                     Canal: String(r["Canal de venta"] || "").trim(),
                     SKU: String(r["SKU"] || "").trim(),
-                    // Búsqueda específica de la columna que indicaste
                     Fecha: r["Fecha original de entrega"] || r["Fecha de entrega"] || "",
-                    CantP: String(r["Cantidad pendiente"] || "0"),
                     CantT: String(r["Cantidad total"] || "0"),
-                    CantE: String(r["Cantidad entregada"] || "0")
+                    CantE: String(r["Cantidad entregada"] || "0"),
+                    CantP: String(r["Cantidad pendiente"] || "0")
                 })).filter(r => r.LPN !== "");
 
                 await db.ref('masterDAD').set(null); 
@@ -191,7 +179,7 @@
                     await db.ref('masterDAD').update(chunk.reduce((a, c, idx) => { a[i+idx] = c; return a; }, {}));
                     bar.style.width = Math.floor((i / filteredData.length) * 100) + "%";
                 }
-                document.getElementById('admin-status').innerText = "✅ Reporte sincronizado.";
+                document.getElementById('admin-status').innerText = "✅ Sincronizado.";
                 ui.classList.add('hidden');
             };
             reader.readAsArrayBuffer(file);
@@ -207,39 +195,34 @@
             window.matches = Object.values(data).filter(i => i.LPN === lpn);
 
             const container = document.getElementById('sku-container');
-            const delayHeader = document.getElementById('res-retraso-general');
-            container.innerHTML = "";
-            delayHeader.innerHTML = "";
+            const banner = document.getElementById('res-retraso-banner');
+            container.innerHTML = ""; banner.innerHTML = "";
             document.getElementById('scan-result').classList.remove('hidden');
             document.getElementById('res-lpn').innerText = lpn;
 
             if (window.matches.length === 0) {
-                container.innerHTML = `<div class="p-4 text-center font-bold text-slate-400 uppercase">NO FIGURA EN REPORTE</div>`;
+                container.innerHTML = `<div class="p-4 text-center font-bold text-slate-500 text-xs">NO FIGURA EN MAESTRA</div>`;
             } else {
-                let maxDelay = 0;
+                let maxD = 0;
                 window.matches.forEach(m => {
-                    const dias = calcularRetraso(m.Fecha);
-                    if (dias > maxDelay) maxDelay = dias;
-                    
-                    const html = `
-                        <div class="sku-card p-3 rounded-xl mb-2 border-l-4 ${dias > 0 ? 'border-red-500' : 'border-blue-500'}">
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="text-blue-400 font-black text-[11px] uppercase tracking-tighter">SKU: ${m.SKU}</span>
-                                <span class="text-[10px] text-slate-400 font-bold">Cant: ${m.CantT}</span>
+                    const d = calcularRetraso(m.Fecha);
+                    if (d > maxD) maxD = d;
+                    container.insertAdjacentHTML('beforeend', `
+                        <div class="sku-card p-2 rounded-xl mb-1 border-l-4 ${d > 0 ? 'border-red-500' : 'border-blue-500'}">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-blue-400 font-black text-[10px]">SKU: ${m.SKU}</span>
+                                <span class="text-[9px] text-slate-400">Cant: ${m.CantT}</span>
                             </div>
-                            <div class="grid grid-cols-2 gap-2">
-                                <div><p class="text-[8px] text-slate-500 uppercase font-bold">Despacho</p><p class="text-min">${m.EstDes}</p></div>
-                                <div><p class="text-[8px] text-slate-500 uppercase font-bold">Retiro</p><p class="text-min text-orange-200">${m.EstRet}</p></div>
+                            <div class="grid grid-cols-2 gap-1">
+                                <div><p class="text-[7px] text-slate-500 uppercase font-bold">Despacho</p><p class="text-[9px] font-bold">${m.EstDes}</p></div>
+                                <div><p class="text-[7px] text-slate-500 uppercase font-bold">Retiro</p><p class="text-[9px] font-bold text-orange-200">${m.EstRet}</p></div>
                             </div>
-                        </div>`;
-                    container.insertAdjacentHTML('beforeend', html);
+                        </div>`);
                 });
-
-                if(maxDelay > 0) {
-                    delayHeader.innerHTML = `<span class="delay-badge bg-red-600 text-white px-4 py-1.5 rounded-full text-xs font-black uppercase italic">⚠️ RETRASO DETECTADO: ${maxDelay} DÍAS</span>`;
-                } else {
-                    delayHeader.innerHTML = `<span class="bg-slate-700 text-slate-300 px-4 py-1.5 rounded-full text-xs font-black uppercase italic text-[10px]">A tiempo</span>`;
-                }
+                
+                banner.innerHTML = maxD > 0 
+                    ? `<div class="delay-alert bg-red-600 text-white p-2 rounded-xl text-center font-black text-sm uppercase italic">⚠️ RETRASO: ${maxD} DÍAS</div>`
+                    : `<div class="bg-slate-700 text-emerald-400 p-2 rounded-xl text-center font-black text-[10px] uppercase">✓ A TIEMPO</div>`;
             }
         }
 
@@ -260,16 +243,16 @@
         function escucharBarrido() {
             db.ref('barridoActual').on('child_added', (snap) => {
                 const v = snap.val();
-                const row = `<tr class="bg-white">
-                    <td class="p-4 border-b font-mono font-black">${v.lpn}</td>
-                    <td class="p-4 border-b text-blue-600 font-bold">${v.sku}</td>
-                    <td class="p-4 border-b text-center font-black ${v.retraso > 0 ? 'text-red-600' : 'text-slate-400'}">${v.retraso}d</td>
-                    <td class="p-4 border-b uppercase">${v.estDes}</td>
-                    <td class="p-4 border-b uppercase text-orange-600">${v.estRet}</td>
-                    <td class="p-4 border-b text-center font-bold text-slate-500">${v.cant}</td>
-                    <td class="p-4 border-b text-slate-400 text-center">${v.time}</td>
-                </tr>`;
-                document.getElementById('admin-table-body').insertAdjacentHTML('afterbegin', row);
+                document.getElementById('admin-table-body').insertAdjacentHTML('afterbegin', `
+                    <tr class="bg-white">
+                        <td class="p-4 border-b font-mono font-black">${v.lpn}</td>
+                        <td class="p-4 border-b text-blue-600 font-bold">${v.sku}</td>
+                        <td class="p-4 border-b text-center font-black ${v.retraso > 0 ? 'text-red-600' : 'text-slate-400'}">${v.retraso}d</td>
+                        <td class="p-4 border-b uppercase">${v.estDes}</td>
+                        <td class="p-4 border-b uppercase text-orange-600">${v.estRet}</td>
+                        <td class="p-4 border-b text-center font-bold text-slate-500">${v.cant}</td>
+                        <td class="p-4 border-b text-slate-400 text-center">${v.time}</td>
+                    </tr>`);
             });
         }
     </script>
