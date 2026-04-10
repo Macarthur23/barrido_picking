@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Logística: Barrido de Picking PRO</title>
+    <title>Logística: Panel Pro</title>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -12,75 +12,73 @@
     <style>
         .loader { border-top-color: #3b82f6; animation: spinner 0.8s linear infinite; }
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .glow-sync { box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); }
     </style>
 </head>
-<body class="bg-slate-50 font-sans text-slate-900">
+<body class="bg-slate-50 font-sans">
 
-    <div id="role-selector" class="fixed inset-0 bg-slate-900 z-50 flex flex-col items-center justify-center space-y-6">
-        <h1 class="text-white text-3xl font-black italic uppercase tracking-widest text-center px-4">BARRIDO DE PICKING</h1>
-        <div class="flex flex-col space-y-4 w-72">
-            <button onclick="initApp('admin')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-5 rounded-2xl shadow-xl transition transform active:scale-95">MODO ADMINISTRADOR</button>
-            <button onclick="initApp('asistente')" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-5 rounded-2xl shadow-xl transition transform active:scale-95">MODO ASISTENTE (CÁMARA)</button>
+    <div id="role-selector" class="fixed inset-0 bg-slate-900 z-50 flex flex-col items-center justify-center p-4">
+        <h1 class="text-white text-3xl font-black italic mb-8 uppercase text-center">BARRIDO DE PICKING</h1>
+        <div class="flex flex-col space-y-4 w-full max-w-xs">
+            <button onclick="initApp('admin')" class="bg-blue-600 text-white font-bold py-5 rounded-2xl shadow-xl transition active:scale-95">ADMINISTRADOR (CARGAR)</button>
+            <button onclick="initApp('asistente')" class="bg-orange-600 text-white font-bold py-5 rounded-2xl shadow-xl transition active:scale-95">ASISTENTE (ESCANEAR)</button>
         </div>
     </div>
 
-    <main id="main-content" class="hidden min-h-screen">
-        <div id="view-admin" class="hidden max-w-[98%] mx-auto p-4 md:p-6">
+    <main id="main-content" class="hidden min-h-screen p-4">
+        <div id="view-admin" class="hidden max-w-5xl mx-auto">
             <div class="bg-white rounded-3xl shadow-xl border border-slate-200 p-6">
-                <div class="flex justify-between items-center mb-6 border-b pb-4">
-                    <h2 class="text-2xl font-black italic text-slate-800">CONSOLA ADMIN</h2>
-                    <button onclick="location.reload()" class="bg-slate-100 px-4 py-2 rounded-xl text-xs font-bold">SALIR</button>
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold italic uppercase text-slate-700">Consola de Control</h2>
+                    <div class="flex gap-2">
+                        <button onclick="limpiarBaseDeDatos()" class="bg-red-100 text-red-600 px-4 py-2 rounded-xl text-xs font-black hover:bg-red-200 transition">LIMPIAR TODO</button>
+                        <button onclick="location.reload()" class="bg-slate-100 px-4 py-2 rounded-xl text-xs font-bold">SALIR</button>
+                    </div>
                 </div>
 
-                <div class="bg-blue-50 border-2 border-dashed border-blue-200 p-6 rounded-2xl mb-8">
-                    <p class="font-bold text-blue-900 mb-4 uppercase text-sm italic tracking-widest">Cargar Reporte (Excel o CSV)</p>
-                    <div class="flex flex-wrap gap-4 items-center">
-                        <input type="file" id="excelFile" class="bg-white p-2 rounded-xl border border-blue-200 text-sm">
-                        <button id="btnUpload" onclick="uploadToCloud()" class="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition uppercase tracking-tighter">Sincronizar Datos</button>
+                <div class="bg-blue-50 border-2 border-dashed border-blue-200 p-8 rounded-3xl text-center mb-8">
+                    <input type="file" id="excelFile" class="mb-6 block w-full text-sm text-slate-500 file:mr-4 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-blue-600 file:text-white cursor-pointer">
+                    <button id="btnUpload" onclick="uploadLargeFile()" class="bg-slate-900 text-white px-10 py-4 rounded-2xl font-black shadow-lg hover:bg-black transition w-full md:w-auto">SINCRONIZAR NUEVO REPORTE</button>
+                    
+                    <div id="uploading-ui" class="hidden mt-8">
+                        <div id="progress-bar" class="bg-blue-600 h-4 rounded-full transition-all duration-300" style="width: 0%"></div>
                     </div>
-
-                    <div id="uploading-ui" class="hidden mt-6 bg-white p-5 rounded-2xl border border-blue-100">
-                        <div class="flex items-center gap-3">
-                            <div class="loader rounded-full border-4 border-t-4 border-slate-100 h-6 w-6"></div>
-                            <span id="load-text" class="font-bold text-blue-700 italic">Procesando archivo...</span>
-                        </div>
-                        <div class="w-full bg-slate-100 rounded-full h-3 mt-4 overflow-hidden">
-                            <div id="progress-bar" class="bg-blue-600 h-full transition-all duration-300" style="width: 0%"></div>
-                        </div>
-                    </div>
-                    <div id="admin-status" class="mt-4 text-sm font-bold text-green-600 italic"></div>
+                    <p id="admin-status" class="mt-4 text-sm font-bold text-emerald-600 italic"></p>
                 </div>
 
-                <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-slate-50 max-h-[500px]">
+                <div class="overflow-x-auto rounded-2xl border border-slate-200">
                     <table class="w-full text-left text-[11px]">
-                        <thead class="bg-slate-800 text-white sticky top-0 font-bold uppercase">
-                            <tr>
-                                <th class="p-4">LPN</th>
-                                <th class="p-4">Est. Despacho</th>
-                                <th class="p-4 text-center">NV</th>
-                                <th class="p-4">SKU</th>
-                                <th class="p-4">Alerta</th>
-                                <th class="p-4">Hora Scan</th>
-                            </tr>
+                        <thead class="bg-slate-800 text-white font-bold uppercase">
+                            <tr><th class="p-4">LPN</th><th class="p-4">Estado</th><th class="p-4">SKU</th><th class="p-4">Cantidades</th><th class="p-4">Alerta</th><th class="p-4">Hora</th></tr>
                         </thead>
-                        <tbody id="admin-table-body" class="divide-y divide-slate-200 font-medium text-slate-700"></tbody>
+                        <tbody id="admin-table-body" class="divide-y divide-slate-100 italic font-medium"></tbody>
                     </table>
                 </div>
             </div>
         </div>
 
-        <div id="view-asistente" class="hidden max-w-md mx-auto p-4">
-            <div class="bg-slate-900 rounded-[3rem] p-6 shadow-2xl min-h-[90vh] text-white flex flex-col border-4 border-slate-800">
-                <div id="qr-reader" class="rounded-[2rem] overflow-hidden border-4 border-slate-700 bg-black mb-6 shadow-inner"></div>
-                <div id="scan-result" class="hidden animate-in fade-in slide-in-from-bottom-6 duration-500">
-                    <div class="bg-slate-800 p-6 rounded-[2.5rem] border-t-8 border-slate-600">
-                        <p id="res-lpn" class="text-4xl font-black mb-6 tracking-tighter text-center text-white italic"></p>
-                        <div class="grid grid-cols-2 gap-4 text-[10px] font-black mb-6 italic opacity-70">
-                            <div class="bg-slate-700/40 p-3 rounded-2xl border border-slate-700"><p>ESTADO</p><p id="res-est-des" class="text-white text-xs mt-1"></p></div>
-                            <div class="bg-slate-700/40 p-3 rounded-2xl border border-slate-700"><p>RETIRO</p><p id="res-est-ret" class="text-white text-xs mt-1"></p></div>
+        <div id="view-asistente" class="hidden max-w-md mx-auto">
+            <div class="bg-slate-900 rounded-[3rem] p-6 shadow-2xl min-h-[90vh] flex flex-col border-4 border-slate-800">
+                
+                <div class="flex items-center justify-between mb-4 px-2">
+                    <div class="flex items-center gap-2">
+                        <div id="sync-dot" class="h-3 w-3 rounded-full bg-slate-600 animate-pulse"></div>
+                        <span id="sync-status-text" class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Verificando Base...</span>
+                    </div>
+                    <span id="sync-count" class="bg-slate-800 text-blue-400 text-[10px] px-3 py-1 rounded-full font-bold border border-slate-700">0 SKU</span>
+                </div>
+
+                <div id="qr-reader" class="rounded-[2rem] overflow-hidden border-2 border-slate-700 bg-black mb-6"></div>
+                
+                <div id="scan-result" class="hidden animate-in fade-in slide-in-from-bottom-8 duration-500">
+                    <div class="bg-slate-800 p-6 rounded-[2.5rem] border-t-4 border-slate-500 text-white">
+                        <p id="res-lpn" class="text-4xl font-black text-center mb-6 italic"></p>
+                        <div class="grid grid-cols-2 gap-4 mb-6 text-xs font-bold opacity-80 text-center uppercase">
+                            <div class="bg-slate-700/50 p-3 rounded-2xl"><p class="text-[9px] text-slate-400">Estado</p><p id="res-est-des"></p></div>
+                            <div class="bg-slate-700/50 p-3 rounded-2xl"><p class="text-[9px] text-slate-400">Pendiente</p><p id="res-pend"></p></div>
                         </div>
-                        <div id="res-alerta-box" class="p-5 rounded-3xl text-center font-black text-2xl mb-6 shadow-lg border-2 border-white/10"></div>
-                        <button id="btnConfirmar" onclick="confirmarYEnviar()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-6 rounded-3xl font-black text-xl shadow-2xl transition active:scale-90 italic">REGISTRAR EN TABLA</button>
+                        <div id="res-alerta-box" class="p-5 rounded-3xl text-center font-black text-2xl mb-8 uppercase italic border-2 border-white/10"></div>
+                        <button onclick="confirmarYEnviar()" class="w-full bg-blue-600 py-6 rounded-3xl font-black text-xl shadow-2xl active:scale-95 transition italic">REGISTRAR EN TABLA</button>
                     </div>
                 </div>
             </div>
@@ -103,88 +101,82 @@
         function initApp(role) {
             document.getElementById('role-selector').classList.add('hidden');
             document.getElementById('main-content').classList.remove('hidden');
-            if(role === 'admin') {
-                document.getElementById('view-admin').classList.remove('hidden');
-                escucharBarrido();
-            } else {
+            if(role === 'admin') document.getElementById('view-admin').classList.remove('hidden');
+            else {
                 document.getElementById('view-asistente').classList.remove('hidden');
-                iniciarEscaner();
+                iniciarMonitorSincronizacion();
+                const scanner = new Html5Qrcode("qr-reader");
+                scanner.start({ facingMode: "environment" }, { fps: 20, qrbox: 250 }, onScanSuccess);
+            }
+            escucharBarrido();
+        }
+
+        // --- MONITOR DE SINCRONIZACIÓN EN TIEMPO REAL ---
+        function iniciarMonitorSincronizacion() {
+            const dot = document.getElementById('sync-dot');
+            const txt = document.getElementById('sync-status-text');
+            const count = document.getElementById('sync-count');
+
+            db.ref('masterDAD').on('value', (snap) => {
+                const data = snap.val();
+                if (data) {
+                    const total = Object.keys(data).length;
+                    dot.classList.replace('bg-slate-600', 'bg-emerald-500');
+                    dot.classList.add('glow-sync');
+                    txt.innerText = "Sincronizado";
+                    txt.classList.replace('text-slate-400', 'text-emerald-400');
+                    count.innerText = `${total} PRODUCTOS`;
+                } else {
+                    dot.classList.replace('bg-emerald-500', 'bg-red-500');
+                    txt.innerText = "Base Vacía";
+                    count.innerText = "0 SKU";
+                }
+            });
+        }
+
+        async function limpiarBaseDeDatos() {
+            if(confirm("¿Borrar base actual e historial?")) {
+                await db.ref('masterDAD').set(null);
+                await db.ref('barridoActual').set(null);
+                location.reload();
             }
         }
 
-        // FUNCIÓN DE CARGA "TOTAL" (Excel o CSV)
-        async function uploadToCloud() {
+        async function uploadLargeFile() {
             const file = document.getElementById('excelFile').files[0];
-            if(!file) return alert("Selecciona un archivo primero.");
-
+            if(!file) return alert("Selecciona archivo.");
             const ui = document.getElementById('uploading-ui');
             const bar = document.getElementById('progress-bar');
-            const text = document.getElementById('load-text');
-            const btn = document.getElementById('btnUpload');
-
             ui.classList.remove('hidden');
-            btn.disabled = true;
-            bar.style.width = "20%";
-            text.innerText = "Abriendo archivo...";
 
             const reader = new FileReader();
             reader.onload = async (e) => {
-                try {
-                    bar.style.width = "50%";
-                    const data = new Uint8Array(e.target.result);
-                    
-                    // Configuramos la lectura para que sea lo más permisiva posible
-                    const wb = XLSX.read(data, { 
-                        type: 'array', 
-                        cellDates: true,
-                        cellText: false,
-                        defval: "" 
-                    });
-                    
-                    const sheet = wb.Sheets[wb.SheetNames[0]];
-                    // Convertimos a JSON sin procesar fórmulas para evitar bloqueos
-                    const jsonData = XLSX.utils.sheet_to_json(sheet, { 
-                        raw: false,
-                        dateNF: 'yyyy-mm-dd'
-                    });
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rawData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+                
+                const filteredData = rawData.map(r => ({
+                    LPN: String(r["LPN"] || r["Código de despacho"] || "").trim(),
+                    EstDes: String(r["Estado de despacho"] || "").trim(),
+                    SKU: String(r["SKU"] || "").trim(),
+                    CantP: String(r["Cantidad pendiente"] || "0"),
+                    CantT: String(r["Cantidad total"] || "0"),
+                    CantE: String(r["Cantidad entregada"] || "0")
+                })).filter(r => r.LPN !== "");
 
-                    if (jsonData.length === 0) throw new Error("Archivo vacío");
-
-                    bar.style.width = "80%";
-                    text.innerText = "Sincronizando registros con la nube...";
-
-                    // Limpieza de campos (Eliminar espacios en los nombres de las columnas)
-                    const cleanData = jsonData.map(row => {
-                        let newRow = {};
-                        for (let key in row) {
-                            newRow[key.trim()] = String(row[key]).trim();
-                        }
-                        return newRow;
-                    });
-
-                    await db.ref('masterDAD').set(cleanData);
-
-                    bar.style.width = "100%";
-                    text.innerText = "¡Hecho!";
-                    setTimeout(() => {
-                        ui.classList.add('hidden');
-                        document.getElementById('admin-status').innerText = `✅ ¡Éxito! Base actualizada con ${cleanData.length} registros.`;
-                        btn.disabled = false;
-                    }, 1000);
-
-                } catch (err) {
-                    console.error(err);
-                    alert("Error crítico. Intenta abrir el archivo en tu PC y 'Guardar como' un nuevo Excel (.xlsx) antes de subir.");
-                    ui.classList.add('hidden');
-                    btn.disabled = false;
+                await db.ref('masterDAD').set(null); 
+                const chunkSize = 500;
+                for (let i = 0; i < filteredData.length; i += chunkSize) {
+                    const chunk = filteredData.slice(i, i + chunkSize);
+                    await db.ref('masterDAD').update(chunk.reduce((a, c, idx) => { a[i+idx] = c; return a; }, {}));
+                    bar.style.width = Math.floor((i / filteredData.length) * 100) + "%";
                 }
+                bar.style.width = "100%";
+                document.getElementById('admin-status').innerText = "✅ Sincronización Exitosa.";
+                ui.classList.add('hidden');
             };
             reader.readAsArrayBuffer(file);
-        }
-
-        function iniciarEscaner() {
-            const html5QrCode = new Html5Qrcode("qr-reader");
-            html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, onScanSuccess);
         }
 
         async function onScanSuccess(decodedText) {
@@ -194,43 +186,36 @@
 
             const snap = await db.ref('masterDAD').once('value');
             const data = snap.val() || [];
-            
-            // Búsqueda flexible por nombre de columna
-            window.matches = Object.values(data).filter(i => 
-                String(i["LPN"] || "").trim() === lpn || 
-                String(i["Código de despacho"] || "").trim() === lpn
-            );
+            window.matches = Object.values(data).filter(i => i.LPN === lpn);
 
             document.getElementById('scan-result').classList.remove('hidden');
             document.getElementById('res-lpn').innerText = lpn;
 
             if (window.matches.length === 0) {
-                mostrarAlertaAsistente("NO REGISTRADO", "bg-slate-600");
+                mostrarAlertaAsistente("NO FIGURA", "bg-slate-500");
+                document.getElementById('res-est-des').innerText = "-";
+                document.getElementById('res-pend').innerText = "-";
             } else {
                 const p = window.matches[0];
-                document.getElementById('res-est-des').innerText = p["Estado de despacho"] || "N/A";
-                document.getElementById('res-est-ret').innerText = p["Estado de retiro"] || "N/A";
-                
-                const estDes = String(p["Estado de despacho"] || "").toUpperCase();
-                const esMalo = estDes.includes("CANCELADO") || estDes.includes("ENTREGADO");
-                mostrarAlertaAsistente(esMalo ? "RETIRAR PRODUCTO" : "VALIDO", esMalo ? "bg-red-600" : "bg-emerald-600");
+                document.getElementById('res-est-des').innerText = p.EstDes;
+                document.getElementById('res-pend').innerText = p.CantP;
+                const esMalo = p.EstDes.toUpperCase().includes("CANCELADO") || p.EstDes.toUpperCase().includes("ENTREGADO");
+                mostrarAlertaAsistente(esMalo ? "RETIRAR" : "VALIDO", esMalo ? "bg-red-600" : "bg-emerald-600 shadow-lg");
             }
         }
 
         function mostrarAlertaAsistente(txt, cls) {
             const box = document.getElementById('res-alerta-box');
             box.innerText = txt;
-            box.className = "p-5 rounded-3xl text-center font-black text-2xl mb-6 text-white " + cls;
+            box.className = "p-5 rounded-3xl text-center font-black text-2xl mb-8 shadow-lg text-white " + cls;
         }
 
         function confirmarYEnviar() {
-            if(!window.matches || window.matches.length === 0) return;
+            if(!window.matches) return;
             window.matches.forEach(m => {
                 db.ref('barridoActual').push({
-                    lpn: m["LPN"] || m["Código de despacho"], 
-                    estDes: m["Estado de despacho"], 
-                    nv: m["Código de N/V"] || "N/A", 
-                    sku: m["SKU"], 
+                    lpn: m.LPN, estDes: m.EstDes, sku: m.SKU,
+                    cant: `${m.CantT}/${m.CantE}/${m.CantP}`,
                     alerta: document.getElementById('res-alerta-box').innerText,
                     time: new Date().toLocaleTimeString()
                 });
@@ -242,14 +227,14 @@
         function escucharBarrido() {
             db.ref('barridoActual').on('child_added', (snap) => {
                 const v = snap.val();
-                const esAlerta = v.alerta.includes('RETIRAR');
-                const row = `<tr class="${esAlerta ? 'bg-red-50 text-red-700' : 'bg-white'}">
+                const esAlerta = v.alerta === 'RETIRAR';
+                const row = `<tr class="${esAlerta ? 'bg-red-50 text-red-700 font-bold' : 'bg-white'}">
                     <td class="p-4 border-b font-mono font-black">${v.lpn}</td>
-                    <td class="p-4 border-b">${v.estDes}</td>
-                    <td class="p-4 border-b font-black text-center">${v.nv}</td>
-                    <td class="p-4 border-b font-bold text-blue-600">${v.sku}</td>
-                    <td class="p-4 border-b font-black italic uppercase">${v.alerta}</td>
-                    <td class="p-4 border-b text-slate-400 font-bold">${v.time}</td>
+                    <td class="p-4 border-b uppercase">${v.estDes}</td>
+                    <td class="p-4 border-b text-blue-600 font-bold">${v.sku}</td>
+                    <td class="p-4 border-b text-center font-bold text-slate-500">${v.cant}</td>
+                    <td class="p-4 border-b font-black uppercase italic">${v.alerta}</td>
+                    <td class="p-4 border-b text-slate-400 text-center">${v.time}</td>
                 </tr>`;
                 document.getElementById('admin-table-body').insertAdjacentHTML('afterbegin', row);
             });
