@@ -15,6 +15,7 @@
         .glow-sync { box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); }
         #res-lpn { word-break: break-all; line-height: 1.1; }
         .text-min { font-size: 10px; line-height: 1.2; font-weight: 800; }
+        .sku-card { background: rgba(255,255,255,0.05); border-left: 3px solid #3b82f6; }
     </style>
 </head>
 <body class="bg-slate-50 font-sans">
@@ -50,7 +51,7 @@
                 <div class="overflow-x-auto rounded-2xl border border-slate-200">
                     <table class="w-full text-left text-[11px]">
                         <thead class="bg-slate-800 text-white font-bold uppercase">
-                            <tr><th class="p-4">LPN / CTN</th><th class="p-4">Est. Despacho</th><th class="p-4">Est. Retiro</th><th class="p-4">SKU</th><th class="p-4">Cantidades</th><th class="p-4">Hora</th></tr>
+                            <tr><th class="p-4">LPN / CTN</th><th class="p-4">SKU</th><th class="p-4">Est. Despacho</th><th class="p-4">Est. Retiro</th><th class="p-4">Cantidades</th><th class="p-4">Hora</th></tr>
                         </thead>
                         <tbody id="admin-table-body" class="divide-y divide-slate-100 italic font-medium"></tbody>
                     </table>
@@ -74,24 +75,8 @@
                     <div class="bg-slate-800 p-5 rounded-[2.5rem] border-t-4 border-slate-500 text-white">
                         <p id="res-lpn" class="text-2xl font-black text-center mb-5 italic text-blue-400 uppercase"></p>
                         
-                        <div class="grid grid-cols-2 gap-2 mb-6 text-center uppercase">
-                            <div class="bg-slate-700/50 p-3 rounded-xl border border-white/5">
-                                <p class="text-[9px] text-slate-400 mb-1 font-bold">Estado Despacho</p>
-                                <p id="res-est-des" class="text-min text-white"></p>
+                        <div id="sku-container" class="space-y-3 mb-6 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                             </div>
-                            <div class="bg-slate-700/50 p-3 rounded-xl border border-white/5">
-                                <p class="text-[9px] text-slate-400 mb-1 font-bold">Estado Retiro</p>
-                                <p id="res-est-ret" class="text-min text-white"></p>
-                            </div>
-                            <div class="bg-slate-700/50 p-3 rounded-xl border border-white/5">
-                                <p class="text-[9px] text-slate-400 mb-1 font-bold">Modalidad</p>
-                                <p id="res-modalidad" class="text-min text-orange-300"></p>
-                            </div>
-                            <div class="bg-slate-700/50 p-3 rounded-xl border border-white/5">
-                                <p class="text-[9px] text-slate-400 mb-1 font-bold">Canal</p>
-                                <p id="res-canal" class="text-min text-orange-300"></p>
-                            </div>
-                        </div>
 
                         <button onclick="confirmarYEnviar()" class="w-full bg-emerald-600 py-6 rounded-3xl font-black text-xl shadow-2xl active:scale-95 transition italic uppercase tracking-tighter">Registrar en Admin</button>
                     </div>
@@ -127,18 +112,13 @@
         }
 
         function iniciarMonitorSincronizacion() {
-            const dot = document.getElementById('sync-dot');
-            const txt = document.getElementById('sync-status-text');
-            const count = document.getElementById('sync-count');
-
             db.ref('masterDAD').on('value', (snap) => {
                 const data = snap.val();
                 if (data) {
                     const total = Object.keys(data).length;
-                    dot.className = "h-3 w-3 rounded-full bg-emerald-500 glow-sync";
-                    txt.innerText = "ONLINE";
-                    txt.className = "text-[10px] font-black text-emerald-400 uppercase tracking-widest";
-                    count.innerText = `${total} SKU`;
+                    document.getElementById('sync-dot').className = "h-3 w-3 rounded-full bg-emerald-500 glow-sync";
+                    document.getElementById('sync-status-text').innerText = "ONLINE";
+                    document.getElementById('sync-count').innerText = `${total} REG`;
                 }
             });
         }
@@ -198,31 +178,42 @@
             const data = snap.val() || [];
             window.matches = Object.values(data).filter(i => i.LPN === lpn);
 
+            const container = document.getElementById('sku-container');
+            container.innerHTML = "";
             document.getElementById('scan-result').classList.remove('hidden');
             document.getElementById('res-lpn').innerText = lpn;
 
             if (window.matches.length === 0) {
-                ["res-est-des", "res-est-ret", "res-modalidad", "res-canal"].forEach(id => document.getElementById(id).innerText = "NO FIGURA");
+                container.innerHTML = `<div class="p-4 text-center font-bold text-slate-400">EL LPN NO FIGURA EN EL REPORTE</div>`;
             } else {
-                const p = window.matches[0];
-                document.getElementById('res-est-des').innerText = p.EstDes || "-";
-                document.getElementById('res-est-ret').innerText = p.EstRet || "-";
-                document.getElementById('res-modalidad').innerText = p.Mod || "-";
-                document.getElementById('res-canal').innerText = p.Canal || "-";
+                window.matches.forEach(m => {
+                    const html = `
+                        <div class="sku-card p-3 rounded-xl mb-2">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-blue-400 font-black text-xs uppercase tracking-tighter">SKU: ${m.SKU}</span>
+                                <span class="text-[10px] text-slate-400 font-bold">Cant: ${m.CantT}</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <p class="text-[8px] text-slate-500 uppercase font-bold">Despacho</p>
+                                    <p class="text-min">${m.EstDes}</p>
+                                </div>
+                                <div>
+                                    <p class="text-[8px] text-slate-500 uppercase font-bold">Retiro</p>
+                                    <p class="text-min text-orange-200">${m.EstRet}</p>
+                                </div>
+                            </div>
+                        </div>`;
+                    container.insertAdjacentHTML('beforeend', html);
+                });
             }
         }
 
         function confirmarYEnviar() {
-            if(!window.matches || window.matches.length === 0) {
-                alert("Sin datos para registrar");
-                return;
-            }
+            if(!window.matches || window.matches.length === 0) return alert("Sin datos");
             window.matches.forEach(m => {
                 db.ref('barridoActual').push({
-                    lpn: m.LPN, 
-                    estDes: m.EstDes, 
-                    estRet: m.EstRet,
-                    sku: m.SKU,
+                    lpn: m.LPN, estDes: m.EstDes, estRet: m.EstRet, sku: m.SKU,
                     cant: `${m.CantT}/${m.CantE}/${m.CantP}`,
                     time: new Date().toLocaleTimeString()
                 });
@@ -236,9 +227,9 @@
                 const v = snap.val();
                 const row = `<tr class="bg-white">
                     <td class="p-4 border-b font-mono font-black">${v.lpn}</td>
+                    <td class="p-4 border-b text-blue-600 font-bold">${v.sku}</td>
                     <td class="p-4 border-b uppercase">${v.estDes}</td>
-                    <td class="p-4 border-b uppercase text-blue-600">${v.estRet}</td>
-                    <td class="p-4 border-b font-bold">${v.sku}</td>
+                    <td class="p-4 border-b uppercase text-orange-600">${v.estRet}</td>
                     <td class="p-4 border-b text-center font-bold text-slate-500">${v.cant}</td>
                     <td class="p-4 border-b text-slate-400 text-center">${v.time}</td>
                 </tr>`;
