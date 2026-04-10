@@ -12,8 +12,10 @@
     <style>
         body { overflow-x: hidden; touch-action: manipulation; }
         .glow-sync { box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); }
-        #res-lpn { word-break: break-all; white-space: normal; line-height: 1; }
-        .estado-box { min-height: 45px; display: flex; flex-direction: column; justify-content: center; }
+        /* LPN reducido para que no rompa el diseño */
+        #res-lpn { word-break: break-all; white-space: normal; line-height: 1; font-size: 1.1rem; }
+        .estado-box { min-height: 40px; display: flex; flex-direction: column; justify-content: center; }
+        .text-estado { font-size: 9px; line-height: 1.1; font-weight: 800; text-transform: uppercase; }
     </style>
 </head>
 <body class="bg-slate-50 font-sans">
@@ -48,7 +50,7 @@
         </div>
 
         <div id="view-asistente" class="hidden max-w-md mx-auto">
-            <div class="bg-slate-900 rounded-[2rem] p-3 shadow-2xl min-h-[90vh] flex flex-col border-4 border-slate-800">
+            <div class="bg-slate-900 rounded-[2rem] p-3 shadow-2xl min-h-[90vh] flex flex-col border-4 border-slate-800 text-white">
                 <div class="flex items-center justify-between mb-2 px-2">
                     <div class="flex items-center gap-1">
                         <div id="sync-dot" class="h-2 w-2 rounded-full bg-slate-600 animate-pulse"></div>
@@ -60,32 +62,32 @@
                 <div id="qr-reader" class="rounded-[1.5rem] overflow-hidden border-2 border-slate-700 bg-black mb-3"></div>
                 
                 <div id="scan-result" class="hidden">
-                    <div class="bg-slate-800 p-3 rounded-[1.5rem] border-t-2 border-slate-600 text-white">
+                    <div class="bg-slate-800 p-3 rounded-[1.5rem] border-t-2 border-slate-600">
                         <div class="bg-black/30 p-2 rounded-xl mb-3">
-                            <p id="res-lpn" class="text-lg font-black text-center text-blue-400 uppercase italic tracking-tighter"></p>
+                            <p id="res-lpn" class="font-black text-center text-blue-400 uppercase italic tracking-tighter"></p>
                         </div>
                         
-                        <div class="grid grid-cols-2 gap-1.5 mb-3">
-                            <div class="bg-slate-700/40 p-1.5 rounded-lg border border-slate-600/30 text-center estado-box">
+                        <div class="grid grid-cols-2 gap-1.5 mb-3 text-center">
+                            <div class="bg-slate-700/40 p-1.5 rounded-lg border border-slate-600/30 estado-box">
                                 <p class="text-[7px] text-slate-500 font-black uppercase mb-0.5">Estado Despacho</p>
-                                <p id="res-est-des" class="text-[9px] font-bold leading-tight"></p>
+                                <p id="res-est-des" class="text-white text-estado"></p>
                             </div>
-                            <div class="bg-slate-700/40 p-1.5 rounded-lg border border-slate-600/30 text-center estado-box">
+                            <div class="bg-slate-700/40 p-1.5 rounded-lg border border-slate-600/30 estado-box">
                                 <p class="text-[7px] text-slate-500 font-black uppercase mb-0.5">Estado Retiro</p>
-                                <p id="res-est-ret" class="text-[9px] font-bold leading-tight"></p>
+                                <p id="res-est-ret" class="text-white text-estado"></p>
                             </div>
-                            <div class="bg-slate-700/40 p-1.5 rounded-lg border border-slate-600/30 text-center estado-box">
+                            <div class="bg-slate-700/40 p-1.5 rounded-lg border border-slate-600/30 estado-box">
                                 <p class="text-[7px] text-slate-500 font-black uppercase mb-0.5">Modalidad</p>
-                                <p id="res-modalidad" class="text-[9px] font-bold text-orange-300"></p>
+                                <p id="res-modalidad" class="text-orange-300 text-estado"></p>
                             </div>
-                            <div class="bg-slate-700/40 p-1.5 rounded-lg border border-slate-600/30 text-center estado-box">
+                            <div class="bg-slate-700/40 p-1.5 rounded-lg border border-slate-600/30 estado-box">
                                 <p class="text-[7px] text-slate-500 font-black uppercase mb-0.5">Canal</p>
-                                <p id="res-canal" class="text-[9px] font-bold text-orange-300"></p>
+                                <p id="res-canal" class="text-orange-300 text-estado"></p>
                             </div>
                         </div>
 
-                        <div id="res-alerta-box" class="p-2.5 rounded-xl text-center font-black text-lg mb-3 uppercase italic"></div>
-                        <button onclick="confirmarYEnviar()" class="w-full bg-blue-600 py-4 rounded-xl font-black text-md shadow-xl active:scale-95 transition uppercase italic">Confirmar Pistoleo</button>
+                        <div id="res-alerta-box" class="p-2.5 rounded-xl text-center font-black text-lg mb-3 uppercase italic shadow-lg"></div>
+                        <button onclick="confirmarYEnviar()" class="w-full bg-blue-600 py-4 rounded-xl font-black text-md active:scale-95 transition uppercase italic">Confirmar</button>
                     </div>
                 </div>
             </div>
@@ -125,37 +127,38 @@
         }
 
         async function limpiarBaseDeDatos() {
-            if(confirm("¿Borrar todo?")) { await db.ref('masterDAD').set(null); await db.ref('barridoActual').set(null); location.reload(); }
+            if(confirm("¿Limpiar todo?")) { await db.ref('masterDAD').set(null); await db.ref('barridoActual').set(null); location.reload(); }
         }
 
         async function uploadLargeFile() {
             const file = document.getElementById('excelFile').files[0];
             if(!file) return alert("Sube un archivo");
+            const ui = document.getElementById('uploading-ui');
             const bar = document.getElementById('progress-bar');
-            document.getElementById('uploading-ui').classList.remove('hidden');
+            ui.classList.remove('hidden');
             
             const reader = new FileReader();
             reader.onload = async (e) => {
                 const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
                 const rawData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
                 
-                // --- BUSCADOR DE COLUMNAS MEJORADO ---
-                const getVal = (row, target) => {
-                    const key = Object.keys(row).find(k => k.trim() === target);
-                    return key ? String(row[key]).trim() : "NO ENCONTRADO";
+                // --- FUNCIÓN DE BÚSQUEDA ROBUSTA ---
+                const getVal = (row, targets) => {
+                    const key = Object.keys(row).find(k => targets.includes(k.trim()));
+                    return key ? String(row[key]).trim() : "-";
                 };
 
                 const filteredData = rawData.map(r => ({
-                    LPN: getVal(r, "LPN") !== "NO ENCONTRADO" ? getVal(r, "LPN") : getVal(r, "Código de despacho"),
-                    EstDes: getVal(r, "Estado de despacho"),
-                    EstRet: getVal(r, "Estado de retiro"),
-                    Mod: getVal(r, "Modalidad de despacho"),
-                    Canal: getVal(r, "Canal de venta"),
-                    SKU: getVal(r, "SKU"),
-                    CantP: getVal(r, "Cantidad pendiente"),
-                    CantT: getVal(r, "Cantidad total"),
-                    CantE: getVal(r, "Cantidad entregada")
-                })).filter(i => i.LPN !== "" && i.LPN !== "NO ENCONTRADO");
+                    LPN: getVal(r, ["LPN", "Código de despacho"]),
+                    EstDes: getVal(r, ["Estado de despacho"]),
+                    EstRet: getVal(r, ["Estado de retiro"]),
+                    Mod: getVal(r, ["Modalidad de despacho"]),
+                    Canal: getVal(r, ["Canal de venta"]),
+                    SKU: getVal(r, ["SKU"]),
+                    CantP: getVal(r, ["Cantidad pendiente"]),
+                    CantT: getVal(r, ["Cantidad total"]),
+                    CantE: getVal(r, ["Cantidad entregada"])
+                })).filter(i => i.LPN !== "-" && i.LPN !== "");
 
                 await db.ref('masterDAD').set(null);
                 const chunk = 500;
@@ -165,7 +168,7 @@
                     bar.style.width = Math.floor((i / filteredData.length) * 100) + "%";
                 }
                 document.getElementById('admin-status').innerText = "✅ DATOS CARGADOS";
-                document.getElementById('uploading-ui').classList.add('hidden');
+                ui.classList.add('hidden');
             };
             reader.readAsArrayBuffer(file);
         }
@@ -194,8 +197,9 @@
                 
                 const ed = p.EstDes.toUpperCase();
                 const er = p.EstRet.toUpperCase();
+                // Alerta basada en tus estados definidos
                 const esMalo = ed.includes("CANCELADO") || ed.includes("ENTREGADO") || er.includes("CANCELADO") || er.includes("TOTALMENTE");
-                mostrarAlerta(esMalo ? "RETIRAR" : "VALIDO", esMalo ? "bg-red-600 animate-pulse" : "bg-emerald-600 shadow-emerald-900/40");
+                mostrarAlerta(esMalo ? "RETIRAR" : "VALIDO", esMalo ? "bg-red-600 animate-pulse" : "bg-emerald-600");
             }
         }
 
