@@ -13,7 +13,6 @@
         .loader { border-top-color: #3b82f6; animation: spinner 0.8s linear infinite; }
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .glow-sync { box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); }
-        /* Ajuste para LPN en móvil */
         #res-lpn { word-break: break-all; line-height: 1.1; }
         .text-min { font-size: 9px; line-height: 1; font-weight: 800; }
     </style>
@@ -42,7 +41,6 @@
                 <div class="bg-blue-50 border-2 border-dashed border-blue-200 p-8 rounded-3xl text-center mb-8">
                     <input type="file" id="excelFile" class="mb-6 block w-full text-sm text-slate-500 file:mr-4 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-blue-600 file:text-white cursor-pointer">
                     <button id="btnUpload" onclick="uploadLargeFile()" class="bg-slate-900 text-white px-10 py-4 rounded-2xl font-black shadow-lg hover:bg-black transition w-full md:w-auto">SINCRONIZAR NUEVO REPORTE</button>
-                    
                     <div id="uploading-ui" class="hidden mt-8">
                         <div id="progress-bar" class="bg-blue-600 h-4 rounded-full transition-all duration-300" style="width: 0%"></div>
                     </div>
@@ -62,7 +60,6 @@
 
         <div id="view-asistente" class="hidden max-w-md mx-auto">
             <div class="bg-slate-900 rounded-[3rem] p-6 shadow-2xl min-h-[90vh] flex flex-col border-4 border-slate-800">
-                
                 <div class="flex items-center justify-between mb-4 px-2">
                     <div class="flex items-center gap-2">
                         <div id="sync-dot" class="h-3 w-3 rounded-full bg-slate-600 animate-pulse"></div>
@@ -168,7 +165,6 @@
                 const workbook = XLSX.read(data, { type: 'array' });
                 const rawData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
                 
-                // Mapeo flexible de columnas
                 const filteredData = rawData.map(r => ({
                     LPN: String(r["LPN"] || r["Código de despacho"] || "").trim(),
                     EstDes: String(r["Estado de despacho"] || "").trim(),
@@ -218,7 +214,13 @@
                 
                 const ed = p.EstDes.toUpperCase();
                 const er = p.EstRet.toUpperCase();
-                const esMalo = ed.includes("CANCELADO") || ed.includes("ENTREGADO") || er.includes("CANCELADO") || er.includes("TOTALMENTE");
+                
+                // --- Lógica de Alerta Actualizada con PARCIALMENTE ---
+                const esMalo = ed.includes("CANCELADO") || 
+                               ed.includes("ENTREGADO") || 
+                               er.includes("CANCELADO") || 
+                               er.includes("TOTALMENTE") || 
+                               er.includes("PARCIALMENTE");
                 
                 mostrarAlertaAsistente(esMalo ? "RETIRAR" : "VALIDO", esMalo ? "bg-red-600 animate-pulse" : "bg-emerald-600");
             }
