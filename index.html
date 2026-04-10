@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Logística Rihanna: Pro</title>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js"></script>
@@ -10,17 +10,10 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        body { overflow-x: hidden; touch-action: manipulation; }
         .glow-sync { box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); }
-        #res-lpn { word-break: break-all; line-height: 1.1; }
-        /* Evita que el texto de los estados se desborde */
-        .estado-text { 
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            font-size: 7.5px;
-            line-height: 1;
-        }
+        #res-lpn { word-break: break-all; white-space: normal; line-height: 1; }
+        .estado-box { min-height: 45px; display: flex; flex-direction: column; justify-content: center; }
     </style>
 </head>
 <body class="bg-slate-50 font-sans">
@@ -28,8 +21,8 @@
     <div id="role-selector" class="fixed inset-0 bg-slate-900 z-50 flex flex-col items-center justify-center p-4">
         <h1 class="text-white text-2xl font-black italic mb-8 uppercase tracking-tighter">BARRIDO DE PICKING</h1>
         <div class="flex flex-col space-y-4 w-full max-w-xs">
-            <button onclick="initApp('admin')" class="bg-blue-600 text-white font-bold py-5 rounded-2xl shadow-xl active:scale-95">ADMINISTRADOR</button>
-            <button onclick="initApp('asistente')" class="bg-orange-600 text-white font-bold py-5 rounded-2xl shadow-xl active:scale-95">ASISTENTE (ESCÁNER)</button>
+            <button onclick="initApp('admin')" class="bg-blue-600 text-white font-bold py-5 rounded-2xl shadow-xl active:scale-95 transition">ADMINISTRADOR</button>
+            <button onclick="initApp('asistente')" class="bg-orange-600 text-white font-bold py-5 rounded-2xl shadow-xl active:scale-95 transition">ASISTENTE (ESCÁNER)</button>
         </div>
     </div>
 
@@ -37,7 +30,7 @@
         <div id="view-admin" class="hidden max-w-5xl mx-auto">
             <div class="bg-white rounded-3xl shadow-xl border border-slate-200 p-4 text-center">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-sm font-black uppercase">Panel Control</h2>
+                    <h2 class="text-sm font-black uppercase">Consola Control</h2>
                     <button onclick="limpiarBaseDeDatos()" class="bg-red-500 text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase">Limpiar Base</button>
                 </div>
                 <div class="bg-blue-50 border-2 border-dashed border-blue-200 p-6 rounded-2xl mb-4">
@@ -55,42 +48,44 @@
         </div>
 
         <div id="view-asistente" class="hidden max-w-md mx-auto">
-            <div class="bg-slate-900 rounded-[2.5rem] p-4 shadow-2xl min-h-[95vh] flex flex-col border-4 border-slate-800">
-                <div class="flex items-center justify-between mb-3 px-2">
+            <div class="bg-slate-900 rounded-[2rem] p-3 shadow-2xl min-h-[90vh] flex flex-col border-4 border-slate-800">
+                <div class="flex items-center justify-between mb-2 px-2">
                     <div class="flex items-center gap-1">
                         <div id="sync-dot" class="h-2 w-2 rounded-full bg-slate-600 animate-pulse"></div>
                         <span id="sync-status-text" class="text-[8px] font-black text-slate-500 uppercase">OFFLINE</span>
                     </div>
-                    <span id="sync-count" class="text-blue-400 text-[8px] font-bold uppercase">0 SKU</span>
+                    <span id="sync-count" class="text-blue-400 text-[8px] font-bold uppercase tracking-tighter">0 SKU</span>
                 </div>
 
-                <div id="qr-reader" class="rounded-[1.5rem] overflow-hidden border-2 border-slate-700 bg-black mb-4"></div>
+                <div id="qr-reader" class="rounded-[1.5rem] overflow-hidden border-2 border-slate-700 bg-black mb-3"></div>
                 
                 <div id="scan-result" class="hidden">
-                    <div class="bg-slate-800 p-3 rounded-[2rem] border-t-2 border-slate-600 text-white">
-                        <p id="res-lpn" class="text-xl font-black text-center mb-3 text-blue-400 italic tracking-tight uppercase"></p>
+                    <div class="bg-slate-800 p-3 rounded-[1.5rem] border-t-2 border-slate-600 text-white">
+                        <div class="bg-black/30 p-2 rounded-xl mb-3">
+                            <p id="res-lpn" class="text-lg font-black text-center text-blue-400 uppercase italic tracking-tighter"></p>
+                        </div>
                         
-                        <div class="grid grid-cols-2 gap-2 mb-4">
-                            <div class="bg-slate-700/40 p-2 rounded-lg border border-slate-600/30 text-center">
+                        <div class="grid grid-cols-2 gap-1.5 mb-3">
+                            <div class="bg-slate-700/40 p-1.5 rounded-lg border border-slate-600/30 text-center estado-box">
                                 <p class="text-[7px] text-slate-500 font-black uppercase mb-0.5">Estado Despacho</p>
-                                <p id="res-est-des" class="estado-text font-bold text-white uppercase"></p>
+                                <p id="res-est-des" class="text-[9px] font-bold leading-tight"></p>
                             </div>
-                            <div class="bg-slate-700/40 p-2 rounded-lg border border-slate-600/30 text-center">
+                            <div class="bg-slate-700/40 p-1.5 rounded-lg border border-slate-600/30 text-center estado-box">
                                 <p class="text-[7px] text-slate-500 font-black uppercase mb-0.5">Estado Retiro</p>
-                                <p id="res-est-ret" class="estado-text font-bold text-white uppercase"></p>
+                                <p id="res-est-ret" class="text-[9px] font-bold leading-tight"></p>
                             </div>
-                            <div class="bg-slate-700/40 p-2 rounded-lg border border-slate-600/30 text-center">
+                            <div class="bg-slate-700/40 p-1.5 rounded-lg border border-slate-600/30 text-center estado-box">
                                 <p class="text-[7px] text-slate-500 font-black uppercase mb-0.5">Modalidad</p>
-                                <p id="res-modalidad" class="text-[9px] font-bold text-orange-300 uppercase"></p>
+                                <p id="res-modalidad" class="text-[9px] font-bold text-orange-300"></p>
                             </div>
-                            <div class="bg-slate-700/40 p-2 rounded-lg border border-slate-600/30 text-center">
+                            <div class="bg-slate-700/40 p-1.5 rounded-lg border border-slate-600/30 text-center estado-box">
                                 <p class="text-[7px] text-slate-500 font-black uppercase mb-0.5">Canal</p>
-                                <p id="res-canal" class="text-[9px] font-bold text-orange-300 uppercase"></p>
+                                <p id="res-canal" class="text-[9px] font-bold text-orange-300"></p>
                             </div>
                         </div>
 
-                        <div id="res-alerta-box" class="p-3 rounded-xl text-center font-black text-lg mb-4 uppercase italic shadow-lg"></div>
-                        <button onclick="confirmarYEnviar()" class="w-full bg-blue-600 py-5 rounded-2xl font-black text-md shadow-xl active:scale-95 transition uppercase italic">Confirmar</button>
+                        <div id="res-alerta-box" class="p-2.5 rounded-xl text-center font-black text-lg mb-3 uppercase italic"></div>
+                        <button onclick="confirmarYEnviar()" class="w-full bg-blue-600 py-4 rounded-xl font-black text-md shadow-xl active:scale-95 transition uppercase italic">Confirmar Pistoleo</button>
                     </div>
                 </div>
             </div>
@@ -124,7 +119,7 @@
                         document.getElementById('sync-count').innerText = `${Object.keys(d).length} SKU`;
                     }
                 });
-                new Html5Qrcode("qr-reader").start({ facingMode: "environment" }, { fps: 20, qrbox: 200 }, onScanSuccess);
+                new Html5Qrcode("qr-reader").start({ facingMode: "environment" }, { fps: 20, qrbox: 180 }, onScanSuccess);
             }
             escucharBarrido();
         }
@@ -144,23 +139,23 @@
                 const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
                 const rawData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
                 
-                // --- CORRECCIÓN CLAVE: Buscador de columnas flexible ---
-                const findCol = (row, names) => {
-                    const key = Object.keys(row).find(k => names.some(n => k.toLowerCase().trim() === n.toLowerCase()));
-                    return key ? String(row[key]).trim() : "SIN DATOS";
+                // --- BUSCADOR DE COLUMNAS MEJORADO ---
+                const getVal = (row, target) => {
+                    const key = Object.keys(row).find(k => k.trim() === target);
+                    return key ? String(row[key]).trim() : "NO ENCONTRADO";
                 };
 
                 const filteredData = rawData.map(r => ({
-                    LPN: findCol(r, ["LPN", "Código de despacho", "Lpn"]),
-                    EstDes: findCol(r, ["Estado de despacho", "Estado Despacho"]),
-                    EstRet: findCol(r, ["Estado de retiro", "Estado Retiro"]),
-                    Mod: findCol(r, ["Modalidad de despacho", "Modalidad"]),
-                    Canal: findCol(r, ["Canal de venta", "Canal"]),
-                    SKU: findCol(r, ["SKU"]),
-                    CantP: findCol(r, ["Cantidad pendiente"]),
-                    CantT: findCol(r, ["Cantidad total"]),
-                    CantE: findCol(r, ["Cantidad entregada"])
-                })).filter(i => i.LPN !== "" && i.LPN !== "SIN DATOS");
+                    LPN: getVal(r, "LPN") !== "NO ENCONTRADO" ? getVal(r, "LPN") : getVal(r, "Código de despacho"),
+                    EstDes: getVal(r, "Estado de despacho"),
+                    EstRet: getVal(r, "Estado de retiro"),
+                    Mod: getVal(r, "Modalidad de despacho"),
+                    Canal: getVal(r, "Canal de venta"),
+                    SKU: getVal(r, "SKU"),
+                    CantP: getVal(r, "Cantidad pendiente"),
+                    CantT: getVal(r, "Cantidad total"),
+                    CantE: getVal(r, "Cantidad entregada")
+                })).filter(i => i.LPN !== "" && i.LPN !== "NO ENCONTRADO");
 
                 await db.ref('masterDAD').set(null);
                 const chunk = 500;
@@ -207,7 +202,7 @@
         function mostrarAlerta(t, c) {
             const b = document.getElementById('res-alerta-box');
             b.innerText = t;
-            b.className = "p-3 rounded-xl text-center font-black text-lg mb-4 uppercase italic text-white " + c;
+            b.className = "p-2.5 rounded-xl text-center font-black text-lg mb-3 uppercase italic text-white " + c;
         }
 
         function confirmarYEnviar() {
@@ -223,7 +218,7 @@
             db.ref('barridoActual').on('child_added', (s) => {
                 const v = s.val();
                 const esA = v.alerta === 'RETIRAR';
-                const row = `<tr class="${esA ? 'bg-red-50 text-red-700 font-bold' : ''}">
+                const row = `<tr class="${esA ? 'bg-red-50 text-red-700' : ''}">
                     <td class="p-2 border-b uppercase">${v.lpn}</td>
                     <td class="p-2 border-b uppercase">${v.estDes}</td>
                     <td class="p-2 border-b font-black">${v.alerta}</td>
