@@ -14,7 +14,7 @@
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .glow-sync { box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); }
         #res-lpn { word-break: break-all; line-height: 1.1; }
-        .text-min { font-size: 9px; line-height: 1; font-weight: 800; }
+        .text-min { font-size: 10px; line-height: 1.2; font-weight: 800; }
     </style>
 </head>
 <body class="bg-slate-50 font-sans">
@@ -50,7 +50,7 @@
                 <div class="overflow-x-auto rounded-2xl border border-slate-200">
                     <table class="w-full text-left text-[11px]">
                         <thead class="bg-slate-800 text-white font-bold uppercase">
-                            <tr><th class="p-4">LPN</th><th class="p-4">Estado</th><th class="p-4">SKU</th><th class="p-4">Cantidades</th><th class="p-4">Alerta</th><th class="p-4">Hora</th></tr>
+                            <tr><th class="p-4">LPN / CTN</th><th class="p-4">Est. Despacho</th><th class="p-4">Est. Retiro</th><th class="p-4">SKU</th><th class="p-4">Cantidades</th><th class="p-4">Hora</th></tr>
                         </thead>
                         <tbody id="admin-table-body" class="divide-y divide-slate-100 italic font-medium"></tbody>
                     </table>
@@ -74,27 +74,26 @@
                     <div class="bg-slate-800 p-5 rounded-[2.5rem] border-t-4 border-slate-500 text-white">
                         <p id="res-lpn" class="text-2xl font-black text-center mb-5 italic text-blue-400 uppercase"></p>
                         
-                        <div class="grid grid-cols-2 gap-2 mb-5 text-center uppercase">
-                            <div class="bg-slate-700/50 p-2 rounded-xl border border-white/5">
-                                <p class="text-[8px] text-slate-400 mb-1">Estado Despacho</p>
-                                <p id="res-est-des" class="text-min"></p>
+                        <div class="grid grid-cols-2 gap-2 mb-6 text-center uppercase">
+                            <div class="bg-slate-700/50 p-3 rounded-xl border border-white/5">
+                                <p class="text-[9px] text-slate-400 mb-1 font-bold">Estado Despacho</p>
+                                <p id="res-est-des" class="text-min text-white"></p>
                             </div>
-                            <div class="bg-slate-700/50 p-2 rounded-xl border border-white/5">
-                                <p class="text-[8px] text-slate-400 mb-1">Estado Retiro</p>
-                                <p id="res-est-ret" class="text-min"></p>
+                            <div class="bg-slate-700/50 p-3 rounded-xl border border-white/5">
+                                <p class="text-[9px] text-slate-400 mb-1 font-bold">Estado Retiro</p>
+                                <p id="res-est-ret" class="text-min text-white"></p>
                             </div>
-                            <div class="bg-slate-700/50 p-2 rounded-xl border border-white/5">
-                                <p class="text-[8px] text-slate-400 mb-1">Modalidad</p>
+                            <div class="bg-slate-700/50 p-3 rounded-xl border border-white/5">
+                                <p class="text-[9px] text-slate-400 mb-1 font-bold">Modalidad</p>
                                 <p id="res-modalidad" class="text-min text-orange-300"></p>
                             </div>
-                            <div class="bg-slate-700/50 p-2 rounded-xl border border-white/5">
-                                <p class="text-[8px] text-slate-400 mb-1">Canal</p>
+                            <div class="bg-slate-700/50 p-3 rounded-xl border border-white/5">
+                                <p class="text-[9px] text-slate-400 mb-1 font-bold">Canal</p>
                                 <p id="res-canal" class="text-min text-orange-300"></p>
                             </div>
                         </div>
 
-                        <div id="res-alerta-box" class="p-4 rounded-3xl text-center font-black text-2xl mb-6 uppercase italic border-2 border-white/10"></div>
-                        <button onclick="confirmarYEnviar()" class="w-full bg-blue-600 py-5 rounded-3xl font-black text-xl shadow-2xl active:scale-95 transition italic uppercase">Registrar</button>
+                        <button onclick="confirmarYEnviar()" class="w-full bg-emerald-600 py-6 rounded-3xl font-black text-xl shadow-2xl active:scale-95 transition italic uppercase tracking-tighter">Registrar en Admin</button>
                     </div>
                 </div>
             </div>
@@ -122,7 +121,7 @@
                 document.getElementById('view-asistente').classList.remove('hidden');
                 iniciarMonitorSincronizacion();
                 const scanner = new Html5Qrcode("qr-reader");
-                scanner.start({ facingMode: "environment" }, { fps: 20, qrbox: 200 }, onScanSuccess);
+                scanner.start({ facingMode: "environment" }, { fps: 20, qrbox: 220 }, onScanSuccess);
             }
             escucharBarrido();
         }
@@ -184,7 +183,7 @@
                     await db.ref('masterDAD').update(chunk.reduce((a, c, idx) => { a[i+idx] = c; return a; }, {}));
                     bar.style.width = Math.floor((i / filteredData.length) * 100) + "%";
                 }
-                document.getElementById('admin-status').innerText = "✅ Sincronizado correctamente.";
+                document.getElementById('admin-status').innerText = "✅ Reporte sincronizado.";
                 ui.classList.add('hidden');
             };
             reader.readAsArrayBuffer(file);
@@ -203,43 +202,28 @@
             document.getElementById('res-lpn').innerText = lpn;
 
             if (window.matches.length === 0) {
-                mostrarAlertaAsistente("NO FIGURA", "bg-slate-500");
-                ["res-est-des", "res-est-ret", "res-modalidad", "res-canal"].forEach(id => document.getElementById(id).innerText = "-");
+                ["res-est-des", "res-est-ret", "res-modalidad", "res-canal"].forEach(id => document.getElementById(id).innerText = "NO FIGURA");
             } else {
                 const p = window.matches[0];
-                document.getElementById('res-est-des').innerText = p.EstDes || "SIN DATOS";
-                document.getElementById('res-est-ret').innerText = p.EstRet || "SIN DATOS";
+                document.getElementById('res-est-des').innerText = p.EstDes || "-";
+                document.getElementById('res-est-ret').innerText = p.EstRet || "-";
                 document.getElementById('res-modalidad').innerText = p.Mod || "-";
                 document.getElementById('res-canal').innerText = p.Canal || "-";
-                
-                const ed = (p.EstDes || "").toUpperCase();
-                const er = (p.EstRet || "").toUpperCase();
-                
-                // --- Lógica estricta: Cruce de ambos estados ---
-                const cancelado = ed.includes("CANCELADO") || er.includes("CANCELADO");
-                const entregado = ed.includes("ENTREGADO") || er.includes("TOTALMENTE") || er.includes("PARCIALMENTE");
-
-                if (cancelado || entregado) {
-                    mostrarAlertaAsistente("RETIRAR", "bg-red-600 animate-pulse");
-                } else {
-                    mostrarAlertaAsistente("VALIDO", "bg-emerald-600");
-                }
             }
         }
 
-        function mostrarAlertaAsistente(txt, cls) {
-            const box = document.getElementById('res-alerta-box');
-            box.innerText = txt;
-            box.className = "p-4 rounded-3xl text-center font-black text-2xl mb-6 shadow-lg text-white " + cls;
-        }
-
         function confirmarYEnviar() {
-            if(!window.matches) return;
+            if(!window.matches || window.matches.length === 0) {
+                alert("Sin datos para registrar");
+                return;
+            }
             window.matches.forEach(m => {
                 db.ref('barridoActual').push({
-                    lpn: m.LPN, estDes: m.EstDes, sku: m.SKU,
+                    lpn: m.LPN, 
+                    estDes: m.EstDes, 
+                    estRet: m.EstRet,
+                    sku: m.SKU,
                     cant: `${m.CantT}/${m.CantE}/${m.CantP}`,
-                    alerta: document.getElementById('res-alerta-box').innerText,
                     time: new Date().toLocaleTimeString()
                 });
             });
@@ -250,13 +234,12 @@
         function escucharBarrido() {
             db.ref('barridoActual').on('child_added', (snap) => {
                 const v = snap.val();
-                const esAlerta = v.alerta === 'RETIRAR';
-                const row = `<tr class="${esAlerta ? 'bg-red-50 text-red-700 font-bold' : 'bg-white'}">
+                const row = `<tr class="bg-white">
                     <td class="p-4 border-b font-mono font-black">${v.lpn}</td>
                     <td class="p-4 border-b uppercase">${v.estDes}</td>
-                    <td class="p-4 border-b text-blue-600 font-bold">${v.sku}</td>
+                    <td class="p-4 border-b uppercase text-blue-600">${v.estRet}</td>
+                    <td class="p-4 border-b font-bold">${v.sku}</td>
                     <td class="p-4 border-b text-center font-bold text-slate-500">${v.cant}</td>
-                    <td class="p-4 border-b font-black uppercase italic">${v.alerta}</td>
                     <td class="p-4 border-b text-slate-400 text-center">${v.time}</td>
                 </tr>`;
                 document.getElementById('admin-table-body').insertAdjacentHTML('afterbegin', row);
