@@ -207,22 +207,23 @@
                 ["res-est-des", "res-est-ret", "res-modalidad", "res-canal"].forEach(id => document.getElementById(id).innerText = "-");
             } else {
                 const p = window.matches[0];
-                document.getElementById('res-est-des').innerText = p.EstDes;
-                document.getElementById('res-est-ret').innerText = p.EstRet;
-                document.getElementById('res-modalidad').innerText = p.Mod;
-                document.getElementById('res-canal').innerText = p.Canal;
+                document.getElementById('res-est-des').innerText = p.EstDes || "SIN DATOS";
+                document.getElementById('res-est-ret').innerText = p.EstRet || "SIN DATOS";
+                document.getElementById('res-modalidad').innerText = p.Mod || "-";
+                document.getElementById('res-canal').innerText = p.Canal || "-";
                 
-                const ed = p.EstDes.toUpperCase();
-                const er = p.EstRet.toUpperCase();
+                const ed = (p.EstDes || "").toUpperCase();
+                const er = (p.EstRet || "").toUpperCase();
                 
-                // --- Lógica de Alerta Actualizada con PARCIALMENTE ---
-                const esMalo = ed.includes("CANCELADO") || 
-                               ed.includes("ENTREGADO") || 
-                               er.includes("CANCELADO") || 
-                               er.includes("TOTALMENTE") || 
-                               er.includes("PARCIALMENTE");
-                
-                mostrarAlertaAsistente(esMalo ? "RETIRAR" : "VALIDO", esMalo ? "bg-red-600 animate-pulse" : "bg-emerald-600");
+                // --- Lógica estricta: Cruce de ambos estados ---
+                const cancelado = ed.includes("CANCELADO") || er.includes("CANCELADO");
+                const entregado = ed.includes("ENTREGADO") || er.includes("TOTALMENTE") || er.includes("PARCIALMENTE");
+
+                if (cancelado || entregado) {
+                    mostrarAlertaAsistente("RETIRAR", "bg-red-600 animate-pulse");
+                } else {
+                    mostrarAlertaAsistente("VALIDO", "bg-emerald-600");
+                }
             }
         }
 
