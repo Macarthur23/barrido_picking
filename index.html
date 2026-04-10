@@ -3,16 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Logística: Barrido de Picking en Tiempo Real</title>
+    <title>Logística: Barrido de Picking Ultra-Rápido</title>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .loader { border-top-color: #3b82f6; animation: spinner 1s linear infinite; }
+        .loader { border-top-color: #3b82f6; animation: spinner 0.8s linear infinite; }
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .tab-active { border-bottom: 4px solid #3b82f6; color: #1e40af; }
     </style>
 </head>
 <body class="bg-slate-50 font-sans text-slate-900">
@@ -20,7 +19,7 @@
     <div id="role-selector" class="fixed inset-0 bg-slate-900 z-50 flex flex-col items-center justify-center space-y-6">
         <div class="text-center">
             <h1 class="text-white text-3xl font-black italic uppercase tracking-widest">BARRIDO DE PICKING</h1>
-            <p class="text-slate-400 text-sm mt-2">Control de Inventario y Despacho</p>
+            <p class="text-slate-400 text-sm mt-2 font-bold uppercase tracking-tighter">Sincronización en Tiempo Real</p>
         </div>
         <div class="flex flex-col space-y-4 w-72">
             <button onclick="initApp('admin')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-5 rounded-2xl shadow-2xl transition transform active:scale-95">MODO ADMINISTRADOR</button>
@@ -33,62 +32,43 @@
         <div id="view-admin" class="hidden max-w-[98%] mx-auto p-4 md:p-6">
             <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
                 <div class="bg-slate-800 p-6 flex justify-between items-center text-white">
-                    <h2 class="text-xl font-bold italic tracking-tight">CONSOLA DE CONTROL - ADMIN</h2>
-                    <button onclick="location.reload()" class="text-xs bg-slate-700 px-4 py-2 rounded-lg hover:bg-red-600 transition">Cerrar Sesión</button>
+                    <h2 class="text-xl font-bold italic">CONSOLA DE CONTROL</h2>
+                    <button onclick="location.reload()" class="text-xs bg-slate-700 px-4 py-2 rounded-lg">Salir</button>
                 </div>
 
                 <div class="p-6">
                     <div class="bg-blue-50 border-2 border-dashed border-blue-200 p-6 rounded-2xl mb-8">
-                        <h3 class="font-bold text-blue-900 mb-4 flex items-center gap-2">
-                            <span class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">1</span>
-                            Sincronizar Maestro DAD (Excel)
-                        </h3>
+                        <h3 class="font-bold text-blue-900 mb-4 flex items-center gap-2">Actualizar Maestro DAD</h3>
                         <div class="flex flex-wrap gap-4 items-center">
-                            <input type="file" id="excelFile" accept=".xlsx, .xls" class="bg-white p-2 rounded-xl border border-blue-200 text-sm w-full md:w-auto">
-                            <button id="btnUpload" onclick="uploadToCloud()" class="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition flex items-center gap-2 shadow-lg">
-                                <span>ACTUALIZAR NUBE</span>
-                            </button>
+                            <input type="file" id="excelFile" accept=".xlsx, .xls" class="bg-white p-2 rounded-xl border border-blue-200 text-sm">
+                            <button id="btnUpload" onclick="uploadToCloud()" class="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 shadow-lg transition">SUBIDA RÁPIDA</button>
                         </div>
 
-                        <div id="uploading-ui" class="hidden mt-6 bg-white p-5 rounded-2xl border border-blue-100 shadow-sm animate-pulse">
+                        <div id="uploading-ui" class="hidden mt-6 bg-white p-5 rounded-2xl border border-blue-100 shadow-sm">
                             <div class="flex items-center gap-3">
                                 <div class="loader rounded-full border-4 border-t-4 border-slate-200 h-6 w-6"></div>
-                                <span id="load-text" class="font-bold text-blue-700 italic">Procesando archivo...</span>
+                                <span id="load-text" class="font-bold text-blue-700">Procesando...</span>
                             </div>
                             <div class="w-full bg-slate-100 rounded-full h-3 mt-4 overflow-hidden">
-                                <div id="progress-bar" class="bg-blue-600 h-full transition-all duration-300" style="width: 0%"></div>
+                                <div id="progress-bar" class="bg-blue-600 h-full transition-all duration-200" style="width: 0%"></div>
                             </div>
                         </div>
                         <div id="admin-status" class="mt-4 text-sm font-bold text-green-600 italic"></div>
                     </div>
 
-                    <div class="flex flex-col md:flex-row justify-between items-end md:items-center mb-6 gap-4">
-                        <div>
-                            <h3 class="font-black text-slate-800 text-lg uppercase italic tracking-tighter">Resultados del Barrido</h3>
-                            <p class="text-slate-500 text-xs font-medium">Actualización automática cada vez que el asistente escanea.</p>
-                        </div>
-                        <button onclick="exportToExcel()" class="bg-emerald-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-emerald-700 shadow-lg transition flex items-center gap-2">
-                            Descargar Reporte Final (.xlsx)
-                        </button>
-                    </div>
-
-                    <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-slate-50">
+                    <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-slate-50 max-h-[600px]">
                         <table class="w-full text-left text-[11px] border-collapse">
-                            <thead class="bg-slate-200 text-slate-700 font-bold">
+                            <thead class="bg-slate-200 text-slate-700 font-bold sticky top-0">
                                 <tr>
                                     <th class="p-4 border-b">LPN</th>
                                     <th class="p-4 border-b">EST. DESPACHO</th>
                                     <th class="p-4 border-b">EST. RETIRO</th>
-                                    <th class="p-4 border-b text-center">NV</th>
                                     <th class="p-4 border-b">SKU</th>
-                                    <th class="p-4 border-b">CANT (T/E/P/C)</th>
-                                    <th class="p-4 border-b">CLIENTE</th>
                                     <th class="p-4 border-b">ALERTA</th>
                                     <th class="p-4 border-b">HORA</th>
                                 </tr>
                             </thead>
-                            <tbody id="admin-table-body" class="divide-y divide-slate-200 font-medium">
-                                </tbody>
+                            <tbody id="admin-table-body" class="divide-y divide-slate-200 font-medium"></tbody>
                         </table>
                     </div>
                 </div>
@@ -97,41 +77,24 @@
 
         <div id="view-asistente" class="hidden max-w-md mx-auto p-4">
             <div class="bg-slate-900 rounded-[3rem] p-6 shadow-2xl min-h-[90vh] text-white flex flex-col border-4 border-slate-800">
-                <div class="text-center mb-6">
-                    <span class="text-orange-500 font-black tracking-widest uppercase italic text-sm">Escáner de Campo</span>
-                    <div id="qr-reader" class="mt-4 rounded-[2rem] overflow-hidden border-4 border-slate-700 bg-black shadow-inner"></div>
-                </div>
+                <div id="qr-reader" class="rounded-[2rem] overflow-hidden border-4 border-slate-700 bg-black mb-6"></div>
 
                 <div id="scan-result" class="hidden flex-1 animate-in fade-in slide-in-from-bottom-6 duration-500">
-                    <div class="bg-slate-800 p-6 rounded-[2.5rem] border-t-8 border-slate-600 shadow-2xl">
-                        <h4 class="text-slate-400 text-center text-[10px] font-bold uppercase tracking-widest mb-1">LPN IDENTIFICADO</h4>
-                        <p id="res-lpn" class="text-5xl font-black mb-6 tracking-tighter text-center text-white"></p>
-
+                    <div class="bg-slate-800 p-6 rounded-[2.5rem] border-t-8 border-slate-600">
+                        <p id="res-lpn" class="text-5xl font-black mb-6 tracking-tighter text-center"></p>
                         <div class="grid grid-cols-2 gap-4 text-[10px] uppercase font-bold mb-6">
-                            <div class="bg-slate-700/40 p-3 rounded-2xl border border-slate-700">
-                                <p class="text-slate-500 mb-1">Estado Despacho</p>
-                                <p id="res-est-des" class="text-white text-xs"></p>
-                            </div>
-                            <div class="bg-slate-700/40 p-3 rounded-2xl border border-slate-700">
-                                <p class="text-slate-500 mb-1">Estado Retiro</p>
-                                <p id="res-est-ret" class="text-white text-xs"></p>
-                            </div>
+                            <div class="bg-slate-700/40 p-3 rounded-2xl"><p>Despacho</p><p id="res-est-des" class="text-white text-xs"></p></div>
+                            <div class="bg-slate-700/40 p-3 rounded-2xl"><p>Retiro</p><p id="res-est-ret" class="text-white text-xs"></p></div>
                         </div>
-
-                        <div id="res-alerta-box" class="p-5 rounded-3xl text-center font-black text-2xl mb-6 shadow-lg transform scale-105 border-2 border-white/10"></div>
-
-                        <button id="btnConfirmar" onclick="confirmarYEnviar()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-6 rounded-3xl font-black text-xl shadow-2xl transition active:scale-90">
-                            REGISTRAR EN PANEL
-                        </button>
+                        <div id="res-alerta-box" class="p-5 rounded-3xl text-center font-black text-2xl mb-6"></div>
+                        <button id="btnConfirmar" onclick="confirmarYEnviar()" class="w-full bg-blue-600 text-white py-6 rounded-3xl font-black text-xl shadow-2xl">REGISTRAR</button>
                     </div>
                 </div>
             </div>
         </div>
-
     </main>
 
     <script>
-        // CONFIGURACIÓN FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyBgLkFSNiWi9hv8YDTN7nWlxAkVndWiRaU",
             authDomain: "barrido-picking-rihanna.firebaseapp.com",
@@ -143,10 +106,6 @@
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-
-        const sndBeep = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-software-interface-start-2574.mp3');
-        const sndAlert = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-urgent-simple-beep-notification-1572.mp3');
-        let currentMatches = [];
 
         function initApp(role) {
             document.getElementById('role-selector').classList.add('hidden');
@@ -160,10 +119,10 @@
             }
         }
 
-        // LÓGICA DE CARGA OPTIMIZADA CON FEEDBACK
+        // CARGA TURBO (BASADA EN ARRAYBUFFER)
         async function uploadToCloud() {
             const file = document.getElementById('excelFile').files[0];
-            if(!file) return alert("Selecciona un archivo Excel (.xlsx)");
+            if(!file) return alert("Selecciona un archivo");
 
             const ui = document.getElementById('uploading-ui');
             const bar = document.getElementById('progress-bar');
@@ -173,42 +132,36 @@
             ui.classList.remove('hidden');
             btn.disabled = true;
             bar.style.width = "10%";
-            text.innerText = "Leyendo datos del archivo...";
+            text.innerText = "Leyendo binarios...";
 
             const reader = new FileReader();
             reader.onload = async (e) => {
                 try {
                     bar.style.width = "30%";
                     const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    // Lectura optimizada sin estilos ni dependencias
+                    const wb = XLSX.read(data, { type: 'array', cellDates: true, bookDeps: false });
                     
-                    bar.style.width = "50%";
-                    text.innerText = "Analizando columnas de logística...";
+                    bar.style.width = "60%";
+                    text.innerText = "Preparando paquete de datos...";
                     
-                    const firstSheet = workbook.SheetNames[0];
-                    const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { 
-                        defval: "", 
-                        raw: false 
-                    });
+                    const jsonData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "", raw: false });
 
-                    if(jsonData.length === 0) throw new Error("Archivo vacío");
+                    bar.style.width = "85%";
+                    text.innerText = "Subiendo a Firebase...";
 
-                    bar.style.width = "75%";
-                    text.innerText = "Sincronizando con Firebase...";
-
+                    // Escritura atómica (la más rápida)
                     await db.ref('masterDAD').set(jsonData);
 
                     bar.style.width = "100%";
-                    text.innerText = "¡Base de datos lista!";
-                    
+                    text.innerText = "¡Completado!";
                     setTimeout(() => {
                         ui.classList.add('hidden');
-                        document.getElementById('admin-status').innerText = `✅ Sincronizado: ${jsonData.length} registros cargados.`;
+                        document.getElementById('admin-status').innerText = `✅ Éxito: ${jsonData.length} registros sincronizados.`;
                         btn.disabled = false;
-                    }, 1000);
-
+                    }, 800);
                 } catch (err) {
-                    alert("Error: Asegúrate que el Excel no esté abierto en tu PC.");
+                    alert("Error procesando el archivo.");
                     ui.classList.add('hidden');
                     btn.disabled = false;
                 }
@@ -216,102 +169,66 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // LÓGICA ASISTENTE: ESCÁNER Y CRUCE
+        // ASISTENTE Y ADMIN SINCRONIZADOS
         function iniciarEscaner() {
             const html5QrCode = new Html5Qrcode("qr-reader");
-            html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: {width: 280, height: 180} }, onScanSuccess);
+            html5QrCode.start({ facingMode: "environment" }, { fps: 20, qrbox: 250 }, onScanSuccess);
         }
 
         async function onScanSuccess(decodedText) {
             const lpn = decodedText.trim();
             if (window.lastLpn === lpn) return;
             window.lastLpn = lpn;
-            sndBeep.play();
 
             const snap = await db.ref('masterDAD').once('value');
             const data = snap.val() || [];
-            currentMatches = data.filter(i => String(i.LPN || "").trim() === lpn);
+            window.matches = data.filter(i => String(i.LPN || "").trim() === lpn);
 
             document.getElementById('scan-result').classList.remove('hidden');
             document.getElementById('res-lpn').innerText = lpn;
 
-            if (currentMatches.length === 0) {
+            if (window.matches.length === 0) {
                 mostrarAlertaAsistente("DESCONOCIDO", "bg-gray-600");
             } else {
-                const p = currentMatches[0];
-                document.getElementById('res-est-des').innerText = p["Estado de despacho"] || "N/A";
-                document.getElementById('res-est-ret').innerText = p["Estado de retiro"] || "N/A";
+                const p = window.matches[0];
+                document.getElementById('res-est-des').innerText = p["Estado de despacho"];
+                document.getElementById('res-est-ret').innerText = p["Estado de retiro"];
                 
                 const estDes = String(p["Estado de despacho"]).toUpperCase();
-                const fEnt = new Date(p["Fecha original de entrega"]);
-                const hoy = new Date();
-                const dias = Math.floor((hoy - fEnt) / 86400000);
-
-                let alerta = "VALIDO"; let color = "bg-emerald-600";
-                
-                if(estDes.includes("CANCELADO") || estDes.includes("ENTREGADO") || dias > 7) {
-                    alerta = estDes.includes("CANCEL") ? "RETIRAR: CANCELADO" : (dias > 7 ? "RETIRAR: +7 DÍAS" : "RETIRAR: ENTREGADO");
-                    color = "bg-rose-600"; sndAlert.play();
-                }
-                mostrarAlertaAsistente(alerta, color);
+                let alerta = estDes.includes("CANCELADO") ? "RETIRAR" : "VALIDO";
+                mostrarAlertaAsistente(alerta, alerta === "RETIRAR" ? "bg-red-600" : "bg-green-600");
             }
         }
 
         function mostrarAlertaAsistente(txt, cls) {
             const box = document.getElementById('res-alerta-box');
             box.innerText = txt;
-            box.className = "p-5 rounded-3xl text-center font-black text-2xl mb-6 shadow-lg text-white " + cls;
+            box.className = "p-5 rounded-3xl text-center font-black text-2xl mb-6 text-white " + cls;
         }
 
         function confirmarYEnviar() {
-            if (currentMatches.length === 0) return;
-            const btn = document.getElementById('btnConfirmar');
-            btn.disabled = true; btn.innerText = "ENVIANDO...";
-
-            currentMatches.forEach(m => {
+            window.matches.forEach(m => {
                 db.ref('barridoActual').push({
                     lpn: m.LPN, estDes: m["Estado de despacho"], estRet: m["Estado de retiro"],
-                    nv: m["Código de N/V"], sku: m.SKU, desc: m.Descripción,
-                    cant: `${m["Cantidad total"]}/${m["Cantidad entregada"]}/${m["cantidad pendiente"] || (m["Cantidad total"] - m["Cantidad entregada"])}/${m["Cantidad cancelada"] || 0}`,
-                    cliente: m["Nombre de cliente"],
-                    alerta: document.getElementById('res-alerta-box').innerText,
+                    sku: m.SKU, alerta: document.getElementById('res-alerta-box').innerText,
                     time: new Date().toLocaleTimeString()
                 });
             });
-
-            setTimeout(() => {
-                btn.disabled = false; btn.innerText = "REGISTRAR EN PANEL";
-                document.getElementById('scan-result').classList.add('hidden');
-                window.lastLpn = "";
-            }, 600);
+            document.getElementById('scan-result').classList.add('hidden');
+            window.lastLpn = "";
         }
 
         function escucharBarrido() {
             db.ref('barridoActual').on('child_added', (snap) => {
                 const v = snap.val();
-                const esAlerta = v.alerta.includes('RETIRAR');
-                const row = `<tr class="${esAlerta ? 'bg-rose-50 text-rose-900' : 'bg-white'} transition-colors">
-                    <td class="p-4 border-b font-mono font-black text-blue-700">${v.lpn}</td>
-                    <td class="p-4 border-b">${v.estDes}</td>
-                    <td class="p-4 border-b">${v.estRet}</td>
-                    <td class="p-4 border-b text-center font-bold">${v.nv}</td>
+                const row = `<tr class="${v.alerta === 'RETIRAR' ? 'bg-red-50' : 'bg-white'}">
+                    <td class="p-4 border-b font-mono font-black">${v.lpn}</td>
+                    <td class="p-4 border-b">${v.estDes}</td><td class="p-4 border-b">${v.estRet}</td>
                     <td class="p-4 border-b font-bold">${v.sku}</td>
-                    <td class="p-4 border-b font-bold text-center">${v.cant}</td>
-                    <td class="p-4 border-b text-slate-500 italic">${v.cliente}</td>
-                    <td class="p-4 border-b font-black ${esAlerta ? 'text-rose-600' : 'text-emerald-600'}">${v.alerta}</td>
-                    <td class="p-4 border-b text-slate-400 text-[10px]">${v.time}</td>
+                    <td class="p-4 border-b font-black text-red-600">${v.alerta}</td>
+                    <td class="p-4 border-b text-slate-400">${v.time}</td>
                 </tr>`;
                 document.getElementById('admin-table-body').insertAdjacentHTML('afterbegin', row);
-            });
-        }
-
-        function exportToExcel() {
-            db.ref('barridoActual').once('value', s => {
-                if(!s.val()) return alert("No hay datos para exportar");
-                const ws = XLSX.utils.json_to_sheet(Object.values(s.val()));
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, "ReporteBarrido");
-                XLSX.writeFile(wb, "Barrido_Logistica_" + new Date().toLocaleDateString() + ".xlsx");
             });
         }
     </script>
