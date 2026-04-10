@@ -17,7 +17,6 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
         .delay-alert { animation: pulse-red 1.5s infinite; border: 2px solid #ef4444; }
         @keyframes pulse-red { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
-        /* Ajuste para tabla ancha */
         .table-container { overflow-x: auto; white-space: nowrap; }
     </style>
 </head>
@@ -95,7 +94,7 @@
                         <p id="res-lpn" class="text-xl font-black text-center mb-2 italic text-blue-400 uppercase tracking-tight"></p>
                         <div id="res-retraso-banner" class="mb-4"></div>
                         <div id="sku-container" class="space-y-2 mb-4 max-h-52 overflow-y-auto pr-1 custom-scrollbar"></div>
-                        <button onclick="confirmarYEnviar()" class="w-full bg-emerald-600 py-4 rounded-2xl font-black text-lg shadow-xl active:scale-95 transition italic uppercase tracking-tighter">Registrar en Admin</button>
+                        <button onclick="confirmarYEnviar()" class="w-full bg-emerald-600 py-4 rounded-2xl font-black text-lg shadow-xl active:scale-95 transition italic uppercase tracking-tighter text-center">Registrar en Admin</button>
                     </div>
                 </div>
             </div>
@@ -148,14 +147,6 @@
                     document.getElementById('sync-count').innerText = `${Object.keys(data).length} REG`;
                 }
             });
-        }
-
-        async function limpiarBaseDeDatos() {
-            if(confirm("¿Borrar todo?")) {
-                await db.ref('masterDAD').set(null);
-                await db.ref('barridoActual').set(null);
-                location.reload();
-            }
         }
 
         async function uploadLargeFile() {
@@ -236,7 +227,10 @@
                         <div class="sku-card p-2 rounded-xl mb-1 border-l-4 ${critico ? 'border-red-500' : 'border-blue-500'}">
                             <div class="flex justify-between items-center mb-1">
                                 <span class="text-blue-400 font-black text-[10px]">SKU: ${m.SKU}</span>
-                                <span class="text-[9px] text-slate-400 font-bold">${d}d retraso</span>
+                                <div class="flex gap-2">
+                                    <span class="text-[9px] text-slate-400 font-bold uppercase">Cant: ${m.CantT}</span>
+                                    ${d > 0 ? `<span class="text-[9px] ${critico ? 'text-red-500 font-black' : 'text-slate-400 font-bold'}">${d}d retraso</span>` : ''}
+                                </div>
                             </div>
                             <div class="grid grid-cols-2 gap-1">
                                 <div><p class="text-[7px] text-slate-500 uppercase font-bold text-center">Despacho</p><p class="text-[9px] font-bold ${critico ? 'text-red-400' : ''} text-center">${m.EstDes}</p></div>
@@ -253,12 +247,20 @@
 
         function confirmarYEnviar() {
             if(!window.matches || window.matches.length === 0) return;
+            
+            // FILTRO: Solo registrar SKUs que cumplan con las reglas de retraso
             window.matches.forEach(m => {
-                db.ref('barridoActual').push({
-                    ...m,
-                    retraso: calcularRetraso(m.Fecha),
-                    time: new Date().toLocaleTimeString()
-                });
+                const d = calcularRetraso(m.Fecha);
+                const est = m.EstDes.toUpperCase();
+                let esCritico = (est.includes("RECOJO CLIENTE") && d > 7) || (est.includes("DESPACHO CLIENTE") && d > 2);
+                
+                if(esCritico) {
+                    db.ref('barridoActual').push({
+                        ...m,
+                        retraso: d,
+                        time: new Date().toLocaleTimeString()
+                    });
+                }
             });
             document.getElementById('scan-result').classList.add('hidden');
             window.lastLpn = "";
@@ -277,7 +279,7 @@
                         <td class="p-3 border-b text-center font-bold text-emerald-600">${v.CantE}</td>
                         <td class="p-3 border-b text-center font-bold text-orange-600">${v.CantP}</td>
                         <td class="p-3 border-b text-center font-bold text-red-600">${v.CantC}</td>
-                        <td class="p-3 border-b font-black ${v.retraso > 0 ? 'text-red-600' : 'text-slate-400'}">${v.retraso}d</td>
+                        <td class="p-3 border-b font-black text-red-600">${v.retraso}d</td>
                         <td class="p-3 border-b uppercase">${v.EstDes}</td>
                         <td class="p-3 border-b max-w-[120px] truncate">${v.NombreCliente}</td>
                         <td class="p-3 border-b">${v.Modalidad}</td>
@@ -292,30 +294,20 @@
             const snap = await db.ref('barridoActual').once('value');
             const data = snap.val();
             if (!data) return alert("No hay datos para exportar.");
-
-            const rawData = Object.values(data);
-            const exportData = rawData.map(r => ({
-                "Código de despacho": r.CodDespacho,
-                "LPN": r.LPN,
-                "SKU": r.SKU,
-                "Descripción": r.Descripcion,
-                "Cantidad total": r.CantT,
-                "Cantidad entregada": r.CantE,
-                "Cantidad pendiente": r.CantP,
-                "Cantidad cancelada": r.CantC,
-                "Días de Retraso": r.retraso,
-                "Estado de despacho": r.EstDes,
-                "Estado de retiro": r.EstRet,
-                "Nombre de cliente": r.NombreCliente,
-                "Modalidad de despacho": r.Modalidad,
-                "Canal de venta": r.Canal,
-                "Hora de Escaneo": r.time
+            const exportData = Object.values(data).map(r => ({
+                "Código de despacho": r.CodDespacho, "LPN": r.LPN, "SKU": r.SKU, "Descripción": r.Descripcion,
+                "Cantidad total": r.CantT, "Cantidad entregada": r.CantE, "Cantidad pendiente": r.CantP, "Cantidad cancelada": r.CantC,
+                "Días de Retraso": r.retraso, "Estado de despacho": r.EstDes, "Estado de retiro": r.EstRet,
+                "Nombre de cliente": r.NombreCliente, "Modalidad de despacho": r.Modalidad, "Canal de venta": r.Canal, "Hora de Escaneo": r.time
             }));
-
             const ws = XLSX.utils.json_to_sheet(exportData);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Barrido");
             XLSX.writeFile(wb, `REPORTE_BARRIDO_${new Date().toISOString().split('T')[0]}.xlsx`);
+        }
+        
+        async function limpiarBaseDeDatos() {
+            if(confirm("¿Borrar todo?")) { await db.ref('masterDAD').set(null); await db.ref('barridoActual').set(null); location.reload(); }
         }
     </script>
 </body>
