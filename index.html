@@ -39,10 +39,7 @@
                 <div class="bg-blue-50 border-2 border-dashed border-blue-200 p-8 rounded-3xl text-center mb-8">
                     <input type="file" id="excelFile" class="mb-6 block w-full text-sm text-slate-500 file:mr-4 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-blue-600 file:text-white cursor-pointer">
                     <button id="btnUpload" onclick="uploadLargeFile()" class="bg-slate-900 text-white px-10 py-4 rounded-2xl font-black shadow-lg hover:bg-black transition w-full md:w-auto">SINCRONIZAR NUEVO REPORTE</button>
-                    
-                    <div id="uploading-ui" class="hidden mt-8">
-                        <div id="progress-bar" class="bg-blue-600 h-4 rounded-full transition-all duration-300" style="width: 0%"></div>
-                    </div>
+                    <div id="uploading-ui" class="hidden mt-8"><div id="progress-bar" class="bg-blue-600 h-4 rounded-full transition-all duration-300" style="width: 0%"></div></div>
                     <p id="admin-status" class="mt-4 text-sm font-bold text-emerald-600 italic"></p>
                 </div>
 
@@ -59,7 +56,6 @@
 
         <div id="view-asistente" class="hidden max-w-md mx-auto">
             <div class="bg-slate-900 rounded-[3rem] p-6 shadow-2xl min-h-[90vh] flex flex-col border-4 border-slate-800">
-                
                 <div class="flex items-center justify-between mb-4 px-2">
                     <div class="flex items-center gap-2">
                         <div id="sync-dot" class="h-3 w-3 rounded-full bg-slate-600 animate-pulse"></div>
@@ -71,13 +67,17 @@
                 <div id="qr-reader" class="rounded-[2rem] overflow-hidden border-2 border-slate-700 bg-black mb-6"></div>
                 
                 <div id="scan-result" class="hidden animate-in fade-in slide-in-from-bottom-8 duration-500">
-                    <div class="bg-slate-800 p-6 rounded-[2.5rem] border-t-4 border-slate-500 text-white">
-                        <p id="res-lpn" class="text-4xl font-black text-center mb-6 italic"></p>
-                        <div class="grid grid-cols-2 gap-4 mb-6 text-xs font-bold opacity-80 text-center uppercase">
-                            <div class="bg-slate-700/50 p-3 rounded-2xl"><p class="text-[9px] text-slate-400">Estado</p><p id="res-est-des"></p></div>
-                            <div class="bg-slate-700/50 p-3 rounded-2xl"><p class="text-[9px] text-slate-400">Pendiente</p><p id="res-pend"></p></div>
+                    <div class="bg-slate-800 p-5 rounded-[2.5rem] border-t-4 border-slate-500 text-white">
+                        <p id="res-lpn" class="text-4xl font-black text-center mb-4 italic"></p>
+                        
+                        <div class="grid grid-cols-2 gap-3 mb-4 text-[9px] font-bold opacity-90 text-center uppercase">
+                            <div class="bg-slate-700/50 p-2 rounded-xl border border-slate-600/50"><p class="text-slate-400 mb-1">Est. Desp.</p><p id="res-est-des" class="text-blue-300"></p></div>
+                            <div class="bg-slate-700/50 p-2 rounded-xl border border-slate-600/50"><p class="text-slate-400 mb-1">Est. Retiro</p><p id="res-est-ret" class="text-blue-300"></p></div>
+                            <div class="bg-slate-700/50 p-2 rounded-xl border border-slate-600/50"><p class="text-slate-400 mb-1">Modalidad</p><p id="res-modalidad" class="text-orange-300"></p></div>
+                            <div class="bg-slate-700/50 p-2 rounded-xl border border-slate-600/50"><p class="text-slate-400 mb-1">Canal</p><p id="res-canal" class="text-orange-300"></p></div>
                         </div>
-                        <div id="res-alerta-box" class="p-5 rounded-3xl text-center font-black text-2xl mb-8 uppercase italic border-2 border-white/10"></div>
+
+                        <div id="res-alerta-box" class="p-4 rounded-3xl text-center font-black text-2xl mb-6 uppercase italic border-2 border-white/10"></div>
                         <button onclick="confirmarYEnviar()" class="w-full bg-blue-600 py-6 rounded-3xl font-black text-xl shadow-2xl active:scale-95 transition italic">REGISTRAR EN TABLA</button>
                     </div>
                 </div>
@@ -111,25 +111,18 @@
             escucharBarrido();
         }
 
-        // --- MONITOR DE SINCRONIZACIÓN EN TIEMPO REAL ---
         function iniciarMonitorSincronizacion() {
-            const dot = document.getElementById('sync-dot');
-            const txt = document.getElementById('sync-status-text');
-            const count = document.getElementById('sync-count');
-
             db.ref('masterDAD').on('value', (snap) => {
                 const data = snap.val();
+                const dot = document.getElementById('sync-dot');
+                const txt = document.getElementById('sync-status-text');
+                const count = document.getElementById('sync-count');
                 if (data) {
                     const total = Object.keys(data).length;
-                    dot.classList.replace('bg-slate-600', 'bg-emerald-500');
-                    dot.classList.add('glow-sync');
+                    dot.className = "h-3 w-3 rounded-full bg-emerald-500 glow-sync";
                     txt.innerText = "Sincronizado";
-                    txt.classList.replace('text-slate-400', 'text-emerald-400');
+                    txt.className = "text-[10px] font-black text-emerald-400 uppercase tracking-widest";
                     count.innerText = `${total} PRODUCTOS`;
-                } else {
-                    dot.classList.replace('bg-emerald-500', 'bg-red-500');
-                    txt.innerText = "Base Vacía";
-                    count.innerText = "0 SKU";
                 }
             });
         }
@@ -159,6 +152,9 @@
                 const filteredData = rawData.map(r => ({
                     LPN: String(r["LPN"] || r["Código de despacho"] || "").trim(),
                     EstDes: String(r["Estado de despacho"] || "").trim(),
+                    EstRet: String(r["Estado de retiro"] || "").trim(), // Agregado
+                    Mod: String(r["Modalidad de despacho"] || "").trim(), // Agregado
+                    Canal: String(r["Canal de venta"] || "").trim(), // Agregado
                     SKU: String(r["SKU"] || "").trim(),
                     CantP: String(r["Cantidad pendiente"] || "0"),
                     CantT: String(r["Cantidad total"] || "0"),
@@ -172,8 +168,7 @@
                     await db.ref('masterDAD').update(chunk.reduce((a, c, idx) => { a[i+idx] = c; return a; }, {}));
                     bar.style.width = Math.floor((i / filteredData.length) * 100) + "%";
                 }
-                bar.style.width = "100%";
-                document.getElementById('admin-status').innerText = "✅ Sincronización Exitosa.";
+                document.getElementById('admin-status').innerText = "✅ Sincronizado correctamente.";
                 ui.classList.add('hidden');
             };
             reader.readAsArrayBuffer(file);
@@ -194,11 +189,16 @@
             if (window.matches.length === 0) {
                 mostrarAlertaAsistente("NO FIGURA", "bg-slate-500");
                 document.getElementById('res-est-des').innerText = "-";
-                document.getElementById('res-pend').innerText = "-";
+                document.getElementById('res-est-ret').innerText = "-";
+                document.getElementById('res-modalidad').innerText = "-";
+                document.getElementById('res-canal').innerText = "-";
             } else {
                 const p = window.matches[0];
                 document.getElementById('res-est-des').innerText = p.EstDes;
-                document.getElementById('res-pend').innerText = p.CantP;
+                document.getElementById('res-est-ret').innerText = p.EstRet;
+                document.getElementById('res-modalidad').innerText = p.Mod;
+                document.getElementById('res-canal').innerText = p.Canal;
+                
                 const esMalo = p.EstDes.toUpperCase().includes("CANCELADO") || p.EstDes.toUpperCase().includes("ENTREGADO");
                 mostrarAlertaAsistente(esMalo ? "RETIRAR" : "VALIDO", esMalo ? "bg-red-600" : "bg-emerald-600 shadow-lg");
             }
@@ -207,7 +207,7 @@
         function mostrarAlertaAsistente(txt, cls) {
             const box = document.getElementById('res-alerta-box');
             box.innerText = txt;
-            box.className = "p-5 rounded-3xl text-center font-black text-2xl mb-8 shadow-lg text-white " + cls;
+            box.className = "p-4 rounded-3xl text-center font-black text-2xl mb-6 shadow-lg text-white " + cls;
         }
 
         function confirmarYEnviar() {
