@@ -87,6 +87,16 @@
                     <span id="sync-count" class="bg-slate-800 text-blue-400 text-[10px] px-3 py-1 rounded-full font-bold border border-slate-700">0 REG</span>
                 </div>
 
+                <div class="mb-4 flex gap-2">
+                    <input type="text" id="manual-input" placeholder="LPN o NV Manual..." 
+                        class="flex-1 bg-slate-800 border-2 border-slate-700 rounded-xl px-4 py-3 text-white font-bold text-sm focus:border-blue-500 outline-none transition uppercase">
+                    <button onclick="buscarManual()" class="bg-blue-600 text-white p-3 rounded-xl hover:bg-blue-700 active:scale-95 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </button>
+                </div>
+
                 <div id="qr-reader" class="rounded-[2rem] overflow-hidden border-2 border-slate-700 bg-black mb-4"></div>
                 
                 <div id="scan-result" class="hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -134,6 +144,11 @@
                 document.getElementById('view-asistente').classList.remove('hidden');
                 iniciarMonitorSincronizacion();
                 new Html5Qrcode("qr-reader").start({ facingMode: "environment" }, { fps: 20, qrbox: 220 }, onScanSuccess);
+                
+                // Escuchar tecla Enter en manual input
+                document.getElementById('manual-input').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') buscarManual();
+                });
             }
             escucharBarrido();
         }
@@ -192,23 +207,36 @@
             reader.readAsArrayBuffer(file);
         }
 
+        // FUNCION PARA BUSQUEDA MANUAL (LPN O NV)
+        function buscarManual() {
+            const val = document.getElementById('manual-input').value.trim();
+            if (val === "") return;
+            onScanSuccess(val);
+            document.getElementById('manual-input').value = "";
+        }
+
         async function onScanSuccess(decodedText) {
-            const lpn = decodedText.trim();
-            if (window.lastLpn === lpn) return;
-            window.lastLpn = lpn;
+            const inputVal = decodedText.trim();
+            if (window.lastInput === inputVal) return;
+            window.lastInput = inputVal;
 
             const snap = await db.ref('masterDAD').once('value');
             const data = snap.val() || [];
-            window.matches = Object.values(data).filter(i => i.LPN === lpn);
+            
+            // BUSQUEDA DUAL: Por LPN o por CodDespacho (NV)
+            window.matches = Object.values(data).filter(i => 
+                i.LPN.toUpperCase() === inputVal.toUpperCase() || 
+                i.CodDespacho.toUpperCase() === inputVal.toUpperCase()
+            );
 
             const container = document.getElementById('sku-container');
             const banner = document.getElementById('res-retraso-banner');
             container.innerHTML = ""; banner.innerHTML = "";
             document.getElementById('scan-result').classList.remove('hidden');
-            document.getElementById('res-lpn').innerText = lpn;
+            document.getElementById('res-lpn').innerText = inputVal;
 
             if (window.matches.length === 0) {
-                container.innerHTML = `<div class="p-4 text-center font-bold text-slate-500 text-xs text-center">NO FIGURA EN MAESTRA</div>`;
+                container.innerHTML = `<div class="p-4 text-center font-bold text-slate-500 text-xs text-center">NO SE ENCONTRÓ LPN / NV</div>`;
             } else {
                 let maxCritDelay = 0;
                 let hayAlertaCritica = false;
@@ -233,8 +261,8 @@
                                 </div>
                             </div>
                             <div class="grid grid-cols-2 gap-1">
-                                <div><p class="text-[7px] text-slate-500 uppercase font-bold text-center">Despacho</p><p class="text-[9px] font-bold ${critico ? 'text-red-400' : ''} text-center">${m.EstDes}</p></div>
-                                <div><p class="text-[7px] text-slate-500 uppercase font-bold text-center">Retiro</p><p class="text-[9px] font-bold text-orange-200 text-center">${m.EstRet}</p></div>
+                                <div><p class="text-[7px] text-slate-500 uppercase font-bold text-center">Despacho</p><p class="text-[9px] font-bold ${critico ? 'text-red-400' : ''} text-center text-min">${m.EstDes}</p></div>
+                                <div><p class="text-[7px] text-slate-500 uppercase font-bold text-center">Retiro</p><p class="text-[9px] font-bold text-orange-200 text-center text-min">${m.EstRet}</p></div>
                             </div>
                         </div>`);
                 });
@@ -248,7 +276,6 @@
         function confirmarYEnviar() {
             if(!window.matches || window.matches.length === 0) return;
             
-            // FILTRO: Solo registrar SKUs que cumplan con las reglas de retraso
             window.matches.forEach(m => {
                 const d = calcularRetraso(m.Fecha);
                 const est = m.EstDes.toUpperCase();
@@ -263,7 +290,7 @@
                 }
             });
             document.getElementById('scan-result').classList.add('hidden');
-            window.lastLpn = "";
+            window.lastInput = "";
         }
 
         function escucharBarrido() {
@@ -297,7 +324,183 @@
             const exportData = Object.values(data).map(r => ({
                 "Código de despacho": r.CodDespacho, "LPN": r.LPN, "SKU": r.SKU, "Descripción": r.Descripcion,
                 "Cantidad total": r.CantT, "Cantidad entregada": r.CantE, "Cantidad pendiente": r.CantP, "Cantidad cancelada": r.CantC,
-                "Días de Retraso": r.retraso, "Estado de despacho": r.EstDes, "Estado de retiro": r.EstRet,
+                "Días de Retraso": r.retraso, "Estado de despacho": r.EstDes, "Estado de retiro": r.E                });
+            }
+            escucharBarrido();
+        }
+
+        function iniciarMonitorSincronizacion() {
+            db.ref('masterDAD').on('value', (snap) => {
+                const data = snap.val();
+                if (data) {
+                    document.getElementById('sync-dot').className = "h-3 w-3 rounded-full bg-emerald-500 glow-sync";
+                    document.getElementById('sync-status-text').innerText = "ONLINE";
+                    document.getElementById('sync-count').innerText = `${Object.keys(data).length} REG`;
+                }
+            });
+        }
+
+        async function uploadLargeFile() {
+            const file = document.getElementById('excelFile').files[0];
+            if(!file) return alert("Selecciona archivo.");
+            const ui = document.getElementById('uploading-ui');
+            const bar = document.getElementById('progress-bar');
+            ui.classList.remove('hidden');
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const rawData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
+                
+                const filteredData = rawData.map(r => ({
+                    CodDespacho: String(r["Código de despacho"] || "").trim(),
+                    LPN: String(r["LPN"] || r["Código de despacho"] || "").trim(),
+                    SKU: String(r["SKU"] || "").trim(),
+                    Descripcion: String(r["Descripción"] || "").trim(),
+                    CantT: Number(r["Cantidad total"] || 0),
+                    CantE: Number(r["Cantidad entregada"] || 0),
+                    CantP: Number(r["Cantidad pendiente"] || 0),
+                    CantC: Number(r["Cantidad cancelada"] || 0),
+                    Fecha: r["Fecha original de entrega"] || r["Fecha de entrega"] || "",
+                    EstDes: String(r["Estado de despacho"] || "").trim(),
+                    EstRet: String(r["Estado de retiro"] || "").trim(),
+                    NombreCliente: String(r["Nombre de cliente"] || "").trim(),
+                    Modalidad: String(r["Modalidad de despacho"] || "").trim(),
+                    Canal: String(r["Canal de venta"] || "").trim()
+                })).filter(r => r.LPN !== "");
+
+                await db.ref('masterDAD').set(null); 
+                const chunkSize = 500;
+                for (let i = 0; i < filteredData.length; i += chunkSize) {
+                    const chunk = filteredData.slice(i, i + chunkSize);
+                    await db.ref('masterDAD').update(chunk.reduce((a, c, idx) => { a[i+idx] = c; return a; }, {}));
+                    bar.style.width = Math.floor((i / filteredData.length) * 100) + "%";
+                }
+                document.getElementById('admin-status').innerText = "✅ Sincronizado.";
+                ui.classList.add('hidden');
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // FUNCION PARA BUSQUEDA MANUAL (LPN O NV)
+        function buscarManual() {
+            const val = document.getElementById('manual-input').value.trim();
+            if (val === "") return;
+            onScanSuccess(val);
+            document.getElementById('manual-input').value = "";
+        }
+
+        async function onScanSuccess(decodedText) {
+            const inputVal = decodedText.trim();
+            if (window.lastInput === inputVal) return;
+            window.lastInput = inputVal;
+
+            const snap = await db.ref('masterDAD').once('value');
+            const data = snap.val() || [];
+            
+            // BUSQUEDA DUAL: Por LPN o por CodDespacho (NV)
+            window.matches = Object.values(data).filter(i => 
+                i.LPN.toUpperCase() === inputVal.toUpperCase() || 
+                i.CodDespacho.toUpperCase() === inputVal.toUpperCase()
+            );
+
+            const container = document.getElementById('sku-container');
+            const banner = document.getElementById('res-retraso-banner');
+            container.innerHTML = ""; banner.innerHTML = "";
+            document.getElementById('scan-result').classList.remove('hidden');
+            document.getElementById('res-lpn').innerText = inputVal;
+
+            if (window.matches.length === 0) {
+                container.innerHTML = `<div class="p-4 text-center font-bold text-slate-500 text-xs text-center">NO SE ENCONTRÓ LPN / NV</div>`;
+            } else {
+                let maxCritDelay = 0;
+                let hayAlertaCritica = false;
+
+                window.matches.forEach(m => {
+                    const d = calcularRetraso(m.Fecha);
+                    const est = m.EstDes.toUpperCase();
+                    let critico = (est.includes("RECOJO CLIENTE") && d > 7) || (est.includes("DESPACHO CLIENTE") && d > 2);
+                    
+                    if(critico) {
+                        hayAlertaCritica = true;
+                        if(d > maxCritDelay) maxCritDelay = d;
+                    }
+
+                    container.insertAdjacentHTML('beforeend', `
+                        <div class="sku-card p-2 rounded-xl mb-1 border-l-4 ${critico ? 'border-red-500' : 'border-blue-500'}">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-blue-400 font-black text-[10px]">SKU: ${m.SKU}</span>
+                                <div class="flex gap-2">
+                                    <span class="text-[9px] text-slate-400 font-bold uppercase">Cant: ${m.CantT}</span>
+                                    ${d > 0 ? `<span class="text-[9px] ${critico ? 'text-red-500 font-black' : 'text-slate-400 font-bold'}">${d}d retraso</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-1">
+                                <div><p class="text-[7px] text-slate-500 uppercase font-bold text-center">Despacho</p><p class="text-[9px] font-bold ${critico ? 'text-red-400' : ''} text-center text-min">${m.EstDes}</p></div>
+                                <div><p class="text-[7px] text-slate-500 uppercase font-bold text-center">Retiro</p><p class="text-[9px] font-bold text-orange-200 text-center text-min">${m.EstRet}</p></div>
+                            </div>
+                        </div>`);
+                });
+                
+                banner.innerHTML = hayAlertaCritica 
+                    ? `<div class="delay-alert bg-red-600 text-white p-2 rounded-xl text-center font-black text-sm uppercase italic">⚠️ ALERTA CRÍTICA: ${maxCritDelay} DÍAS</div>`
+                    : `<div class="bg-slate-700 text-emerald-400 p-2 rounded-xl text-center font-black text-[10px] uppercase tracking-widest text-center">ESTADO NORMAL</div>`;
+            }
+        }
+
+        function confirmarYEnviar() {
+            if(!window.matches || window.matches.length === 0) return;
+            
+            window.matches.forEach(m => {
+                const d = calcularRetraso(m.Fecha);
+                const est = m.EstDes.toUpperCase();
+                let esCritico = (est.includes("RECOJO CLIENTE") && d > 7) || (est.includes("DESPACHO CLIENTE") && d > 2);
+                
+                if(esCritico) {
+                    db.ref('barridoActual').push({
+                        ...m,
+                        retraso: d,
+                        time: new Date().toLocaleTimeString()
+                    });
+                }
+            });
+            document.getElementById('scan-result').classList.add('hidden');
+            window.lastInput = "";
+        }
+
+        function escucharBarrido() {
+            db.ref('barridoActual').on('child_added', (snap) => {
+                const v = snap.val();
+                const row = `
+                    <tr class="bg-white hover:bg-slate-50">
+                        <td class="p-3 border-b font-bold text-slate-700">${v.CodDespacho}</td>
+                        <td class="p-3 border-b font-mono font-black">${v.LPN}</td>
+                        <td class="p-3 border-b text-blue-600 font-bold">${v.SKU}</td>
+                        <td class="p-3 border-b max-w-[150px] truncate">${v.Descripcion}</td>
+                        <td class="p-3 border-b text-center font-bold">${v.CantT}</td>
+                        <td class="p-3 border-b text-center font-bold text-emerald-600">${v.CantE}</td>
+                        <td class="p-3 border-b text-center font-bold text-orange-600">${v.CantP}</td>
+                        <td class="p-3 border-b text-center font-bold text-red-600">${v.CantC}</td>
+                        <td class="p-3 border-b font-black text-red-600">${v.retraso}d</td>
+                        <td class="p-3 border-b uppercase">${v.EstDes}</td>
+                        <td class="p-3 border-b max-w-[120px] truncate">${v.NombreCliente}</td>
+                        <td class="p-3 border-b">${v.Modalidad}</td>
+                        <td class="p-3 border-b">${v.Canal}</td>
+                        <td class="p-3 border-b text-slate-400 text-center">${v.time}</td>
+                    </tr>`;
+                document.getElementById('admin-table-body').insertAdjacentHTML('afterbegin', row);
+            });
+        }
+
+        async function exportarBarrido() {
+            const snap = await db.ref('barridoActual').once('value');
+            const data = snap.val();
+            if (!data) return alert("No hay datos para exportar.");
+            const exportData = Object.values(data).map(r => ({
+                "Código de despacho": r.CodDespacho, "LPN": r.LPN, "SKU": r.SKU, "Descripción": r.Descripcion,
+                "Cantidad total": r.CantT, "Cantidad entregada": r.CantE, "Cantidad pendiente": r.CantP, "Cantidad cancelada": r.CantC,
+                "Días de Retraso": r.retraso, "Estado de despacho": r.EstDes, "Estado de retiro": r.E
                 "Nombre de cliente": r.NombreCliente, "Modalidad de despacho": r.Modalidad, "Canal de venta": r.Canal, "Hora de Escaneo": r.time
             }));
             const ws = XLSX.utils.json_to_sheet(exportData);
