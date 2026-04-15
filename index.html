@@ -205,7 +205,7 @@
         function buscarManual() {
             const val = document.getElementById('manual-input').value.trim();
             if (val === "") return;
-            window.lastInput = null; // Reset para permitir búsqueda manual consecutiva
+            window.lastInput = null;
             onScanSuccess(val);
             document.getElementById('manual-input').value = "";
         }
@@ -231,14 +231,15 @@
             if (window.matches.length === 0) {
                 container.innerHTML = `<div class="p-4 text-center font-bold text-slate-500 text-xs">NO SE ENCONTRÓ LPN / NV</div>`;
             } else {
-                let maxCritDelay = 0;
+                let maxDelay = 0;
                 let hayAlertaCritica = false;
 
                 window.matches.forEach(m => {
                     const d = calcularRetraso(m.Fecha);
                     const est = m.EstDes.toUpperCase();
                     let critico = (est.includes("RECOJO CLIENTE") && d > 7) || (est.includes("DESPACHO CLIENTE") && d > 2);
-                    if(critico) { hayAlertaCritica = true; if(d > maxCritDelay) maxCritDelay = d; }
+                    if(critico) { hayAlertaCritica = true; }
+                    if(d > maxDelay) maxDelay = d;
 
                     container.insertAdjacentHTML('beforeend', `
                         <div class="sku-card p-2 rounded-xl mb-1 border-l-4 ${critico ? 'border-red-500' : 'border-blue-500'}">
@@ -256,29 +257,28 @@
                         </div>`);
                 });
                 banner.innerHTML = hayAlertaCritica 
-                    ? `<div class="delay-alert bg-red-600 text-white p-2 rounded-xl text-center font-black text-sm uppercase italic">⚠️ ALERTA CRÍTICA: ${maxCritDelay} DÍAS</div>`
-                    : `<div class="bg-slate-700 text-emerald-400 p-2 rounded-xl text-center font-black text-[10px] uppercase tracking-widest">ESTADO NORMAL</div>`;
+                    ? `<div class="delay-alert bg-red-600 text-white p-2 rounded-xl text-center font-black text-sm uppercase italic">⚠️ ALERTA CRÍTICA: ${maxDelay} DÍAS</div>`
+                    : `<div class="bg-slate-700 text-emerald-400 p-2 rounded-xl text-center font-black text-[10px] uppercase tracking-widest">ESTADO: ${maxDelay} DÍAS</div>`;
             }
         }
 
+        // REGISTRO TOTAL SIN FILTROS
         function confirmarYEnviar() {
             if(!window.matches || window.matches.length === 0) return;
-            let registrosEnviados = 0;
+            
             window.matches.forEach(m => {
                 const d = calcularRetraso(m.Fecha);
-                const est = m.EstDes.toUpperCase();
-                let esCritico = (est.includes("RECOJO CLIENTE") && d > 7) || (est.includes("DESPACHO CLIENTE") && d > 2);
-                if(esCritico) {
-                    db.ref('barridoActual').push({ ...m, retraso: d, time: new Date().toLocaleTimeString() });
-                    registrosEnviados++;
-                }
+                // Registra todo lo que esté en window.matches por decisión del usuario
+                db.ref('barridoActual').push({ 
+                    ...m, 
+                    retraso: d, 
+                    time: new Date().toLocaleTimeString() 
+                });
             });
             
-            if(registrosEnviados > 0) alert(`✅ Se enviaron ${registrosEnviados} SKU(s) con retraso.`);
-            else alert("ℹ️ No hay SKUs con retraso para registrar.");
-            
+            alert(`✅ Registrado correctamente en el panel.`);
             document.getElementById('scan-result').classList.add('hidden');
-            window.lastInput = null; // Importante: Reset para permitir el siguiente escaneo
+            window.lastInput = null;
         }
 
         function escucharBarrido() {
