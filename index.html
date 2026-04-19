@@ -83,7 +83,10 @@
                             <h2 class="text-xl font-bold italic uppercase text-red-600">Auditoría de Faltantes</h2>
                             <p class="text-[10px] font-bold text-slate-400 uppercase">Filtro: Pendientes Cliente y Almacén sin Ubicar</p>
                         </div>
-                        <button onclick="compararFaltantes()" class="bg-orange-500 text-white px-6 py-3 rounded-2xl font-black text-xs shadow-lg hover:bg-orange-600 transition active:scale-95">IDENTIFICAR FALTANTES EN ÁREA</button>
+                        <div class="flex gap-2">
+                            <button onclick="exportarFaltantesExcel()" class="bg-emerald-500 text-white px-4 py-3 rounded-2xl font-black text-xs shadow-lg hover:bg-emerald-600 transition active:scale-95">EXPORTAR FALTANTES</button>
+                            <button onclick="compararFaltantes()" class="bg-orange-500 text-white px-6 py-3 rounded-2xl font-black text-xs shadow-lg hover:bg-orange-600 transition active:scale-95">IDENTIFICAR FALTANTES EN ÁREA</button>
+                        </div>
                     </div>
 
                     <div id="audit-container" class="hidden animate-in fade-in slide-in-from-top-4">
@@ -334,35 +337,22 @@
             }
         }
 
-        // --- MEJORA: VALIDACIÓN LPN + COD DESPACHO + SKU ---
         async function confirmarYEnviar() {
             if(!window.matches || window.matches.length === 0) return;
-
-            // Consultar barrido actual para validar contra duplicados exactos
             const barridoSnap = await db.ref('barridoActual').once('value');
             const barridoData = barridoSnap.val() ? Object.values(barridoSnap.val()) : [];
-            
-            // Creamos un set de llaves únicas (Paquete-Producto)
             const registrosExistentes = new Set(barridoData.map(b => `${b.CodDespacho}-${b.LPN}-${b.SKU}`));
-
             let nuevosRegistros = 0;
             window.matches.forEach(m => {
                 const llaveUnica = `${m.CodDespacho}-${m.LPN}-${m.SKU}`;
-                
-                // Solo si la combinación completa NO existe, se registra
                 if (!registrosExistentes.has(llaveUnica)) {
                     const d = calcularRetraso(m.Fecha);
                     db.ref('barridoActual').push({ ...m, retraso: d, time: new Date().toLocaleTimeString() });
                     nuevosRegistros++;
                 }
             });
-
-            if (nuevosRegistros > 0) {
-                alert(`✅ Registrado: ${nuevosRegistros} ítem(s).`);
-            } else {
-                alert(`⚠️ Omitido: Estos ítems ya están registrados en este LPN.`);
-            }
-
+            if (nuevosRegistros > 0) alert(`✅ Registrado: ${nuevosRegistros} ítem(s).`);
+            else alert(`⚠️ Omitido: Estos ítems ya están registrados en este LPN.`);
             document.getElementById('scan-result').classList.add('hidden');
             window.lastInput = null;
         }
@@ -405,6 +395,30 @@
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Barrido");
             XLSX.writeFile(wb, `REPORTE_BARRIDO_${new Date().toISOString().split('T')[0]}.xlsx`);
+        }
+
+        async function exportarFaltantesExcel() {
+            const masterSnap = await db.ref('masterDAD').once('value');
+            const barridoSnap = await db.ref('barridoActual').once('value');
+            const masterData = masterSnap.val() ? Object.values(masterSnap.val()) : [];
+            const barridoData = barridoSnap.val() ? Object.values(barridoSnap.val()) : [];
+            const yaEscaneados = new Set(barridoData.map(b => `${b.CodDespacho}-${b.LPN}-${b.SKU}`));
+            
+            const faltantes = masterData.filter(m => {
+                const est = m.EstDes.toUpperCase();
+                const esEstadoCritico = est.includes("PENDIENTE DE RECOJO CLIENTE") || est.includes("PENDIENTE DE DESPACHO CLIENTE") || est.includes("ALMACEN");
+                return esEstadoCritico && !yaEscaneados.has(`${m.CodDespacho}-${m.LPN}-${m.SKU}`);
+            }).map(f => ({
+                "Cod. Despacho": f.CodDespacho, "LPN Faltante": f.LPN, "SKU": f.SKU, "Descripción": f.Descripcion,
+                "Cantidad total": f.CantT, "Cantidad entregada": f.CantE, "Cantidad pendiente": f.CantP, "Cantidad cancelada": f.CantC,
+                "Días de Retraso": calcularRetraso(f.Fecha), "Estado de despacho": f.EstDes, "Nombre Cliente": f.NombreCliente, "Modalidad": f.Modalidad
+            }));
+
+            if(faltantes.length === 0) return alert("No hay faltantes para exportar.");
+            const ws = XLSX.utils.json_to_sheet(faltantes);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Faltantes");
+            XLSX.writeFile(wb, `AUDITORIA_FALTANTES_${new Date().toISOString().split('T')[0]}.xlsx`);
         }
         
         async function limpiarBaseDeDatos() { if(confirm("¿Borrar todo?")) { await db.ref('masterDAD').set(null); await db.ref('barridoActual').set(null); location.reload(); } }
