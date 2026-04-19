@@ -18,7 +18,6 @@
         .delay-alert { animation: pulse-red 1.5s infinite; border: 2px solid #ef4444; }
         @keyframes pulse-red { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
         .table-container { overflow-x: auto; white-space: nowrap; }
-        /* Nueva restricción para visualización de registros */
         .scroll-limit { max-height: 450px; overflow-y: auto; }
     </style>
 </head>
@@ -242,29 +241,19 @@
         async function compararFaltantes() {
             const masterSnap = await db.ref('masterDAD').once('value');
             const barridoSnap = await db.ref('barridoActual').once('value');
-            
             const masterData = masterSnap.val() ? Object.values(masterSnap.val()) : [];
             const barridoData = barridoSnap.val() ? Object.values(barridoSnap.val()) : [];
-            
-            const yaEscaneados = new Set(barridoData.map(b => `${b.LPN.toUpperCase()}-${b.SKU.toUpperCase()}`));
+            const yaEscaneados = new Set(barridoData.map(b => `${b.CodDespacho}-${b.LPN}-${b.SKU}`));
             
             const faltantes = masterData.filter(m => {
                 const est = m.EstDes.toUpperCase();
-                const esEstadoCritico = est.includes("PENDIENTE DE RECOJO CLIENTE") || 
-                                       est.includes("PENDIENTE DE DESPACHO CLIENTE") || 
-                                       est.includes("ALMACEN");
-                
-                return esEstadoCritico && !yaEscaneados.has(`${m.LPN.toUpperCase()}-${m.SKU.toUpperCase()}`);
+                const esEstadoCritico = est.includes("PENDIENTE DE RECOJO CLIENTE") || est.includes("PENDIENTE DE DESPACHO CLIENTE") || est.includes("ALMACEN");
+                return esEstadoCritico && !yaEscaneados.has(`${m.CodDespacho}-${m.LPN}-${m.SKU}`);
             });
             
             const tableBody = document.getElementById('audit-table-body');
             tableBody.innerHTML = "";
-            
-            if(faltantes.length === 0) {
-                alert("🎉 ¡Excelente! No hay faltantes críticos en los estados seleccionados.");
-                document.getElementById('audit-container').classList.add('hidden');
-                return;
-            }
+            if(faltantes.length === 0) { alert("🎉 ¡Excelente! No hay faltantes."); return; }
 
             faltantes.forEach(f => {
                 const d = calcularRetraso(f.Fecha);
@@ -282,12 +271,9 @@
                         <td class="p-3 border-b border-orange-100 uppercase font-black text-[9px]">${f.EstDes}</td>
                         <td class="p-3 border-b border-orange-100 truncate max-w-[100px]">${f.NombreCliente}</td>
                         <td class="p-3 border-b border-orange-100">${f.Modalidad}</td>
-                    </tr>
-                `);
+                    </tr>`);
             });
-
             document.getElementById('audit-container').classList.remove('hidden');
-            alert(`Se identificaron ${faltantes.length} registros pendientes en el área.`);
         }
 
         function buscarManual() {
@@ -321,14 +307,12 @@
             } else {
                 let maxDelay = 0;
                 let hayAlertaCritica = false;
-
                 window.matches.forEach(m => {
                     const d = calcularRetraso(m.Fecha);
                     const est = m.EstDes.toUpperCase();
                     let critico = (est.includes("RECOJO CLIENTE") && d > 7) || (est.includes("DESPACHO CLIENTE") && d > 2);
                     if(critico) { hayAlertaCritica = true; }
                     if(d > maxDelay) maxDelay = d;
-
                     container.insertAdjacentHTML('beforeend', `
                         <div class="sku-card p-2 rounded-xl mb-1 border-l-4 ${critico ? 'border-red-500' : 'border-blue-500'}">
                             <div class="flex justify-between items-center mb-1">
@@ -350,13 +334,35 @@
             }
         }
 
-        function confirmarYEnviar() {
+        // --- MEJORA: VALIDACIÓN LPN + COD DESPACHO + SKU ---
+        async function confirmarYEnviar() {
             if(!window.matches || window.matches.length === 0) return;
+
+            // Consultar barrido actual para validar contra duplicados exactos
+            const barridoSnap = await db.ref('barridoActual').once('value');
+            const barridoData = barridoSnap.val() ? Object.values(barridoSnap.val()) : [];
+            
+            // Creamos un set de llaves únicas (Paquete-Producto)
+            const registrosExistentes = new Set(barridoData.map(b => `${b.CodDespacho}-${b.LPN}-${b.SKU}`));
+
+            let nuevosRegistros = 0;
             window.matches.forEach(m => {
-                const d = calcularRetraso(m.Fecha);
-                db.ref('barridoActual').push({ ...m, retraso: d, time: new Date().toLocaleTimeString() });
+                const llaveUnica = `${m.CodDespacho}-${m.LPN}-${m.SKU}`;
+                
+                // Solo si la combinación completa NO existe, se registra
+                if (!registrosExistentes.has(llaveUnica)) {
+                    const d = calcularRetraso(m.Fecha);
+                    db.ref('barridoActual').push({ ...m, retraso: d, time: new Date().toLocaleTimeString() });
+                    nuevosRegistros++;
+                }
             });
-            alert(`✅ Registrado correctamente.`);
+
+            if (nuevosRegistros > 0) {
+                alert(`✅ Registrado: ${nuevosRegistros} ítem(s).`);
+            } else {
+                alert(`⚠️ Omitido: Estos ítems ya están registrados en este LPN.`);
+            }
+
             document.getElementById('scan-result').classList.add('hidden');
             window.lastInput = null;
         }
