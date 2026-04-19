@@ -80,7 +80,7 @@
                     <div class="flex items-center justify-between mb-4">
                         <div>
                             <h2 class="text-xl font-bold italic uppercase text-red-600">Auditoría de Faltantes</h2>
-                            <p class="text-[10px] font-bold text-slate-400 uppercase">Cruce: Archivo Base vs Escaneado en Físico</p>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">Filtro: Pendientes Cliente y Almacén sin Ubicar</p>
                         </div>
                         <button onclick="compararFaltantes()" class="bg-orange-500 text-white px-6 py-3 rounded-2xl font-black text-xs shadow-lg hover:bg-orange-600 transition active:scale-95">IDENTIFICAR FALTANTES EN ÁREA</button>
                     </div>
@@ -232,7 +232,6 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // LÓGICA DE AUDITORÍA (LO NUEVO)
         async function compararFaltantes() {
             const masterSnap = await db.ref('masterDAD').once('value');
             const barridoSnap = await db.ref('barridoActual').once('value');
@@ -240,16 +239,23 @@
             const masterData = masterSnap.val() ? Object.values(masterSnap.val()) : [];
             const barridoData = barridoSnap.val() ? Object.values(barridoSnap.val()) : [];
             
-            // Creamos un Set de los LPN+SKU ya escaneados para búsqueda rápida
             const yaEscaneados = new Set(barridoData.map(b => `${b.LPN.toUpperCase()}-${b.SKU.toUpperCase()}`));
             
-            const faltantes = masterData.filter(m => !yaEscaneados.has(`${m.LPN.toUpperCase()}-${m.SKU.toUpperCase()}`));
+            // MEJORA: Filtro por estados específicos solicitados
+            const faltantes = masterData.filter(m => {
+                const est = m.EstDes.toUpperCase();
+                const esEstadoCritico = est.includes("PENDIENTE DE RECOJO CLIENTE") || 
+                                       est.includes("PENDIENTE DE DESPACHO CLIENTE") || 
+                                       est.includes("ALMACEN");
+                
+                return esEstadoCritico && !yaEscaneados.has(`${m.LPN.toUpperCase()}-${m.SKU.toUpperCase()}`);
+            });
             
             const tableBody = document.getElementById('audit-table-body');
             tableBody.innerHTML = "";
             
             if(faltantes.length === 0) {
-                alert("🎉 ¡Excelente! No hay faltantes. Todo el archivo ha sido escaneado.");
+                alert("🎉 ¡Excelente! No hay faltantes críticos en los estados seleccionados.");
                 document.getElementById('audit-container').classList.add('hidden');
                 return;
             }
@@ -263,14 +269,14 @@
                         <td class="p-3 border-b border-orange-100 truncate max-w-[150px]">${f.Descripcion}</td>
                         <td class="p-3 border-b border-orange-100 text-center font-black">${f.CantP}</td>
                         <td class="p-3 border-b border-orange-100 text-center font-bold text-red-600">${d}d</td>
-                        <td class="p-3 border-b border-orange-100 uppercase">${f.EstDes}</td>
+                        <td class="p-3 border-b border-orange-100 uppercase font-black text-[9px]">${f.EstDes}</td>
                         <td class="p-3 border-b border-orange-100 truncate max-w-[100px]">${f.NombreCliente}</td>
                     </tr>
                 `);
             });
 
             document.getElementById('audit-container').classList.remove('hidden');
-            alert(`Se identificaron ${faltantes.length} registros faltantes en el área.`);
+            alert(`Se identificaron ${faltantes.length} registros pendientes en el área.`);
         }
 
         function buscarManual() {
