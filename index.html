@@ -258,6 +258,9 @@
             tableBody.innerHTML = "";
             if(faltantes.length === 0) { alert("🎉 ¡Excelente! No hay faltantes."); return; }
 
+            // Mensaje solicitado por el usuario
+            alert(`Atención: Se identificaron ${faltantes.length} código(s) de despacho que no se registraron.`);
+
             faltantes.forEach(f => {
                 const d = calcularRetraso(f.Fecha);
                 tableBody.insertAdjacentHTML('beforeend', `
