@@ -18,6 +18,8 @@
         .delay-alert { animation: pulse-red 1.5s infinite; border: 2px solid #ef4444; }
         @keyframes pulse-red { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
         .table-container { overflow-x: auto; white-space: nowrap; }
+        /* Nueva restricción para visualización de registros */
+        .scroll-limit { max-height: 450px; overflow-y: auto; }
     </style>
 </head>
 <body class="bg-slate-50 font-sans">
@@ -52,9 +54,9 @@
                 </div>
 
                 <h3 class="font-black text-slate-400 text-[10px] tracking-widest uppercase mb-2">Registros de Escaneo Actual</h3>
-                <div class="table-container custom-scrollbar rounded-2xl border border-slate-200 mb-8">
+                <div class="table-container custom-scrollbar rounded-2xl border border-slate-200 mb-8 scroll-limit">
                     <table class="w-full text-left text-[10px]">
-                        <thead class="bg-slate-800 text-white font-bold uppercase sticky top-0">
+                        <thead class="bg-slate-800 text-white font-bold uppercase sticky top-0 z-10">
                             <tr>
                                 <th class="p-3">Cod. Despacho</th>
                                 <th class="p-3">LPN</th>
@@ -86,9 +88,9 @@
                     </div>
 
                     <div id="audit-container" class="hidden animate-in fade-in slide-in-from-top-4">
-                        <div class="table-container custom-scrollbar rounded-2xl border-2 border-orange-100 bg-orange-50/30">
+                        <div class="table-container custom-scrollbar rounded-2xl border-2 border-orange-100 bg-orange-50/30 scroll-limit">
                             <table class="w-full text-left text-[10px]">
-                                <thead class="bg-orange-600 text-white font-bold uppercase">
+                                <thead class="bg-orange-600 text-white font-bold uppercase sticky top-0 z-10">
                                     <tr>
                                         <th class="p-3">Cod. Despacho</th>
                                         <th class="p-3">LPN Faltante</th>
