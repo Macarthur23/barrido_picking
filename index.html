@@ -423,16 +423,19 @@
             XLSX.writeFile(wb, `AUDITORIA_FALTANTES_${new Date().toISOString().split('T')[0]}.xlsx`);
         }
         
-        async function limpiarBaseDeDatos() { 
-            if(confirm("¿Estás seguro? Se borrará el MASTER y los ESCANEOS actuales para cargar un nuevo archivo.")) { 
-                try {
-                    await db.ref('masterDAD').remove(); 
-                    await db.ref('barridoActual').remove(); 
+        function limpiarBaseDeDatos() { 
+            if(confirm("¿Estás seguro? Se borrará el MASTER y los ESCANEOS para cargar un nuevo archivo.")) { 
+                // Usamos promesas directas para asegurar compatibilidad
+                Promise.all([
+                    db.ref('masterDAD').remove(),
+                    db.ref('barridoActual').remove()
+                ]).then(() => {
                     alert("✅ Base de datos limpia.");
-                    location.reload(); 
-                } catch (e) {
-                    alert("Error al limpiar datos.");
-                }
+                    location.reload();
+                }).catch((error) => {
+                    console.error("Error Firebase:", error);
+                    alert("Error de permisos en Firebase. Verifica las reglas de tu base de datos.");
+                });
             } 
         }
     </script>
