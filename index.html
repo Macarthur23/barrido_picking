@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -258,7 +258,6 @@
             tableBody.innerHTML = "";
             if(faltantes.length === 0) { alert("🎉 ¡Excelente! No hay faltantes."); return; }
 
-            // Mensaje solicitado por el usuario
             alert(`Atención: Se identificaron ${faltantes.length} código(s) de despacho que no se registraron.`);
 
             faltantes.forEach(f => {
@@ -424,7 +423,18 @@
             XLSX.writeFile(wb, `AUDITORIA_FALTANTES_${new Date().toISOString().split('T')[0]}.xlsx`);
         }
         
-        async function limpiarBaseDeDatos() { if(confirm("¿Borrar todo?")) { await db.ref('masterDAD').set(null); await db.ref('barridoActual').set(null); location.reload(); } }
+        async function limpiarBaseDeDatos() { 
+            if(confirm("¿Estás seguro? Se borrará el MASTER y los ESCANEOS actuales para cargar un nuevo archivo.")) { 
+                try {
+                    await db.ref('masterDAD').remove(); 
+                    await db.ref('barridoActual').remove(); 
+                    alert("✅ Base de datos limpia.");
+                    location.reload(); 
+                } catch (e) {
+                    alert("Error al limpiar datos.");
+                }
+            } 
+        }
     </script>
 </body>
 </html>
