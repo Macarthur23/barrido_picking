@@ -18,7 +18,7 @@
         .delay-alert { animation: pulse-red 1.5s infinite; border: 2px solid #ef4444; }
         @keyframes pulse-red { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
         .table-container { overflow-x: auto; white-space: nowrap; }
-        .scroll-limit { max-height: 450px; overflow-y: auto; }
+        .scroll-limit { max-height: 250px; overflow-y: auto; }
         .semaforo-verde { background-color: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 6px; font-weight: 900; }
         .semaforo-amarillo { background-color: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 6px; font-weight: 900; }
         .semaforo-rojo { background-color: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 6px; font-weight: 900; }
@@ -55,7 +55,57 @@
                 <p id="admin-status" class="mt-4 text-sm font-bold text-emerald-600 italic"></p>
             </div>
 
-            <h3 class="font-black text-slate-400 text-[10px] tracking-widest uppercase mb-2">Registros de Escaneo Actual</h3>
+            <h3 class="font-black text-emerald-600 text-[10px] tracking-widest uppercase mb-2">1. Ítems Entregados / Despachados</h3>
+            <div class="table-container custom-scrollbar rounded-2xl border border-slate-200 mb-6 scroll-limit">
+                <table class="w-full text-left text-[10px]">
+                    <thead class="bg-emerald-700 text-white font-bold uppercase sticky top-0 z-10">
+                    <tr>
+                        <th class="p-3">Cod. Despacho</th>
+                        <th class="p-3">LPN</th>
+                        <th class="p-3">SKU</th>
+                        <th class="p-3">Descripción</th>
+                        <th class="p-3 text-center">C.T</th>
+                        <th class="p-3 text-center">C.E</th>
+                        <th class="p-3 text-center">C.P</th>
+                        <th class="p-3 text-center">C.C</th>
+                        <th class="p-3 text-center">Retraso</th>
+                        <th class="p-3">Est. Despacho</th>
+                        <th class="p-3">Nombre Cliente</th>
+                        <th class="p-3">Modalidad</th>
+                        <th class="p-3">Canal</th>
+                        <th class="p-3 text-center">Hora Registro</th>
+                    </tr>
+                    </thead>
+                    <tbody id="panel-entregados-body" class="divide-y divide-slate-100 italic font-medium bg-emerald-50/20"></tbody>
+                </table>
+            </div>
+
+            <h3 class="font-black text-red-500 text-[10px] tracking-widest uppercase mb-2">2. Ítems Cancelados</h3>
+            <div class="table-container custom-scrollbar rounded-2xl border border-slate-200 mb-6 scroll-limit">
+                <table class="w-full text-left text-[10px]">
+                    <thead class="bg-red-700 text-white font-bold uppercase sticky top-0 z-10">
+                    <tr>
+                        <th class="p-3">Cod. Despacho</th>
+                        <th class="p-3">LPN</th>
+                        <th class="p-3">SKU</th>
+                        <th class="p-3">Descripción</th>
+                        <th class="p-3 text-center">C.T</th>
+                        <th class="p-3 text-center">C.E</th>
+                        <th class="p-3 text-center">C.P</th>
+                        <th class="p-3 text-center">C.C</th>
+                        <th class="p-3 text-center">Retraso</th>
+                        <th class="p-3">Est. Despacho</th>
+                        <th class="p-3">Nombre Cliente</th>
+                        <th class="p-3">Modalidad</th>
+                        <th class="p-3">Canal</th>
+                        <th class="p-3 text-center">Hora Registro</th>
+                    </tr>
+                    </thead>
+                    <tbody id="panel-cancelados-body" class="divide-y divide-slate-100 italic font-medium bg-red-50/20"></tbody>
+                </table>
+            </div>
+
+            <h3 class="font-black text-slate-400 text-[10px] tracking-widest uppercase mb-2">3. Registros de Escaneo Actual</h3>
             <div class="table-container custom-scrollbar rounded-2xl border border-slate-200 mb-8 scroll-limit">
                 <table class="w-full text-left text-[10px]">
                     <thead class="bg-slate-800 text-white font-bold uppercase sticky top-0 z-10">
@@ -83,7 +133,7 @@
             <div class="border-t-4 border-slate-100 pt-8">
                 <div class="flex items-center justify-between mb-4">
                     <div>
-                        <h2 class="text-xl font-bold italic uppercase text-red-600">Auditoría de Faltantes</h2>
+                        <h2 class="text-xl font-bold italic uppercase text-red-600">4. Auditoría de Faltantes</h2>
                         <p class="text-[10px] font-bold text-slate-400 uppercase">Filtro: Pendientes Cliente y Almacén sin Ubicar</p>
                     </div>
                     <div class="flex gap-2">
@@ -222,7 +272,6 @@
             const workbook = XLSX.read(data, { type: 'array' });
             const rawData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
 
-            // Paso 1: Mapear datos básicos
             const mappedData = rawData.map(r => ({
                 CodDespacho: String(r["Código de despacho"] || "").trim(),
                 LPN: String(r["LPN"] || r["Código de despacho"] || "").trim(),
@@ -240,15 +289,32 @@
                 Canal: String(r["Canal de venta"] || "").trim()
             })).filter(r => r.LPN !== "");
 
-            // Paso 2: Contar SKUs por LPN/NV para determinar visibilidad de C.P
+            const nvSummary = {};
+            mappedData.forEach(r => {
+                if (!nvSummary[r.CodDespacho]) {
+                    nvSummary[r.CodDespacho] = { totalSkus: 0, totalPendientes: 0 };
+                }
+                nvSummary[r.CodDespacho].totalSkus += 1;
+                nvSummary[r.CodDespacho].totalPendientes += r.CantP;
+            });
+
             const lpnCounts = {};
             mappedData.forEach(r => { lpnCounts[r.LPN] = (lpnCounts[r.LPN] || 0) + 1; });
 
-            // Paso 3: Asignar propiedad de visibilidad definitiva
-            const filteredData = mappedData.map(r => ({
-                ...r,
-                SoloUnSku: lpnCounts[r.LPN] === 1
-            }));
+            const filteredData = mappedData.map(r => {
+                const summary = nvSummary[r.CodDespacho];
+                let estadoModificado = "";
+
+                if (summary && summary.totalSkus > 1 && summary.totalPendientes > 0) {
+                    estadoModificado = "ENTREGA PARCIAL";
+                }
+
+                return {
+                    ...r,
+                    SoloUnSku: lpnCounts[r.LPN] === 1,
+                    EstadoModificado: estadoModificado
+                };
+            });
 
             await db.ref('masterDAD').set(null);
             const chunkSize = 500;
@@ -285,6 +351,12 @@
         faltantes.forEach(f => {
             const d = calcularRetraso(f.Fecha);
             const mostrarCP = !(f.SoloUnSku && f.CantE === 0);
+
+            let badgeEstado = `<span class="uppercase">${f.EstDes}</span>`;
+            if (f.EstadoModificado === "ENTREGA PARCIAL") {
+                badgeEstado = `<span class="uppercase text-[9px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-black border border-amber-300 shadow-sm">ENTREGA PARCIAL</span>`;
+            }
+
             tableBody.insertAdjacentHTML('beforeend', `
                 <tr class="hover:bg-orange-100/50">
                     <td class="p-3 border-b border-orange-100 font-bold">${f.CodDespacho}</td>
@@ -296,7 +368,7 @@
                     <td class="p-3 border-b border-orange-100 text-center font-black text-orange-600">${mostrarCP ? f.CantP : '-'}</td>
                     <td class="p-3 border-b border-orange-100 text-center font-bold text-red-600">${f.CantC}</td>
                     <td class="p-3 border-b border-orange-100 text-center"><span class="${getSemaforoClass(d)}">${d}d</span></td>
-                    <td class="p-3 border-b border-orange-100 uppercase font-black text-[9px]">${f.EstDes}</td>
+                    <td class="p-3 border-b border-orange-100 font-black">${badgeEstado}</td>
                     <td class="p-3 border-b border-orange-100 truncate max-w-[100px]">${f.NombreCliente}</td>
                     <td class="p-3 border-b border-orange-100">${f.Modalidad}</td>
                     <td class="p-3 border-b border-orange-100">${f.Canal || "-"}</td>
@@ -342,8 +414,20 @@
                 let critico = (est.includes("RECOJO CLIENTE") && d > 7) || (est.includes("DESPACHO CLIENTE") && d > 2);
                 if(critico) { hayAlertaCritica = true; }
                 if(d > maxDelay) maxDelay = d;
+
+                let renderEst = m.EstDes;
+                let colorBorder = critico ? 'border-red-500' : 'border-blue-500';
+
+                if (m.EstadoModificado === "ENTREGA PARCIAL") {
+                    renderEst = "ENTREGA PARCIAL";
+                    colorBorder = 'border-amber-500';
+                } else if (est.includes("ENTREGADO") || (m.CantE > 0 && m.CantP === 0)) {
+                    renderEst = "ENTREGADO REVISAR";
+                    colorBorder = 'border-emerald-600';
+                }
+
                 container.insertAdjacentHTML('beforeend', `
-                    <div class="sku-card p-2 rounded-xl mb-1 border-l-4 ${critico ? 'border-red-500' : 'border-blue-500'}">
+                    <div class="sku-card p-2 rounded-xl mb-1 border-l-4 ${colorBorder}">
                         <div class="flex justify-between items-center mb-1">
                             <span class="text-blue-400 font-black text-[10px]">SKU: ${m.SKU}</span>
                             <div class="flex gap-2">
@@ -352,7 +436,7 @@
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-1">
-                            <div><p class="text-[7px] text-slate-500 uppercase font-bold text-center">Despacho</p><p class="text-[9px] font-bold ${critico ? 'text-red-400' : ''} text-center text-min">${m.EstDes}</p></div>
+                            <div><p class="text-[7px] text-slate-500 uppercase font-bold text-center">Despacho</p><p class="text-[9px] font-bold text-center text-min">${renderEst}</p></div>
                             <div><p class="text-[7px] text-slate-500 uppercase font-bold text-center">Retiro</p><p class="text-[9px] font-bold text-orange-200 text-center text-min">${m.EstRet}</p></div>
                         </div>
                     </div>`);
@@ -384,13 +468,43 @@
     }
 
     function escucharBarrido() {
-        db.ref('barridoActual').on('child_added', (snap) => {
+        db.ref('barridoActual').on('child_added', async (snap) => {
             const v = snap.val();
 
-            // Lógica ahora basada en la propiedad 'SoloUnSku' calculada al cargar el Excel
             const mostrarCP = !(v.SoloUnSku && v.CantE === 0);
-            const esParcial = v.CantE > 0 && v.CantP > 0;
-            const entregadoCompleto = v.CantE > 0 && v.CantP === 0;
+            const est = v.EstDes.toUpperCase();
+
+            let txtEstado = v.EstDes;
+            let subBadge = "";
+
+            // 1. Si el registro está cancelado
+            if (est.includes("CANCELADO") || v.CantC > 0) {
+                txtEstado = v.EstDes;
+                subBadge = '<br><span class="text-[8px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-black border border-red-300 shadow-sm">CANCELADO</span>';
+            }
+            // 2. Si es una orden con entregas (Entregado o Parcial)
+            else if (est.includes("ENTREGADO") || v.CantE > 0 || v.EstadoModificado === "ENTREGA PARCIAL") {
+
+                // Consultamos el Master en tiempo real para verificar TODOS los SKUs de este código de despacho
+                const masterSnap = await db.ref('masterDAD').once('value');
+                const masterData = masterSnap.val() ? Object.values(masterSnap.val()) : [];
+
+                // Filtramos todas las filas que pertenezcan a este mismo código de despacho
+                const lasFilasDelDespacho = masterData.filter(m => m.CodDespacho === v.CodDespacho);
+
+                // Sumamos la cantidad pendiente de todo el grupo para saber si realmente falta mercancía
+                const pendientesGlobales = lasFilasDelDespacho.reduce((sum, item) => sum + Number(item.CantP || 0), 0);
+
+                if (pendientesGlobales > 0) {
+                    // CASO A: Si la suma total de pendientes del despacho es mayor a 0, significa que AÚN FALTA MERCADERÍA
+                    txtEstado = "ENTREGA PARCIAL";
+                    subBadge = '<br><span class="text-[9px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-black border border-amber-300 shadow-sm uppercase tracking-wider inline-block mt-0.5">ENTREGA PARCIAL</span>';
+                } else {
+                    // CASO B: Si ya no queda absolutamente nada pendiente en ningún SKU de ese código, está COMPLETADO
+                    txtEstado = "ENTREGADO";
+                    subBadge = '<br><span class="text-[9px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-black border border-emerald-300 shadow-sm uppercase tracking-wider inline-block mt-0.5">ENTREGADO REVISAR</span>';
+                }
+            }
 
             const row = `
                 <tr class="bg-white hover:bg-slate-50">
@@ -403,16 +517,21 @@
                     <td class="p-3 border-b text-center font-bold text-orange-600">${mostrarCP ? v.CantP : '-'}</td>
                     <td class="p-3 border-b text-center font-bold text-red-600">${v.CantC}</td>
                     <td class="p-3 border-b text-center"><span class="${getSemaforoClass(v.retraso)}">${v.retraso}d</span></td>
-                    <td class="p-3 border-b">
-                        <span class="uppercase">${v.EstDes}</span>
-                        ${esParcial ? '<br><span class="text-[8px] bg-orange-100 text-orange-600 px-1 rounded font-black">ENTREGA PARCIAL</span>' :
-                          entregadoCompleto ? '<br><span class="text-[8px] bg-emerald-100 text-emerald-600 px-1 rounded font-black">ENTREGADO</span>' : ''}
-                    </td>
+                    <td class="p-3 border-b font-black text-slate-800">${txtEstado}${subBadge}</td>
                     <td class="p-3 border-b max-w-[120px] truncate">${v.NombreCliente}</td>
                     <td class="p-3 border-b">${v.Modalidad}</td>
                     <td class="p-3 border-b">${v.Canal || "-"}</td>
                     <td class="p-3 border-b text-slate-400 text-center">${v.time}</td>
                 </tr>`;
+
+            // Clasificación en las tablas superiores
+            if (est.includes("CANCELADO") || v.CantC > 0) {
+                document.getElementById('panel-cancelados-body').insertAdjacentHTML('afterbegin', row);
+            } else {
+                document.getElementById('panel-entregados-body').insertAdjacentHTML('afterbegin', row);
+            }
+
+            // Siempre va al historial general de abajo
             document.getElementById('admin-table-body').insertAdjacentHTML('afterbegin', row);
         });
     }
@@ -447,7 +566,7 @@
         }).map(f => ({
             "Cod. Despacho": f.CodDespacho, "LPN Faltante": f.LPN, "SKU": f.SKU, "Descripción": f.Descripcion,
             "Cantidad total": f.CantT, "Cantidad entregada": f.CantE, "Cantidad pendiente": f.CantP, "Cantidad cancelada": f.CantC,
-            "Días de Retraso": calcularRetraso(f.Fecha), "Estado de despacho": f.EstDes, "Nombre Cliente": f.NombreCliente, "Modalidad": f.Modalidad, "Canal": f.Canal
+            "Días de Retraso": calcularRetraso(f.Fecha), "Estado de despacho": f.EstadoModificado === "ENTREGA PARCIAL" ? "ENTREGA PARCIAL" : f.EstDes, "Nombre Cliente": f.NombreCliente, "Modalidad": f.Modalidad, "Canal": f.Canal
         }));
 
         if(faltantes.length === 0) return alert("No hay faltantes para exportar.");
