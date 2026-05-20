@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Logística: Panel Pro</title>
+    <title>Logística: Panel Multi-Tienda</title>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -26,29 +26,56 @@
 </head>
 <body class="bg-slate-50 font-sans">
 
-<div id="role-selector" class="fixed inset-0 bg-slate-900 z-50 flex flex-col items-center justify-center p-4">
-    <h1 class="text-white text-3xl font-black italic mb-8 uppercase text-center">BARRIDO DE PICKING</h1>
+<div id="login-screen" class="fixed inset-0 bg-slate-900 z-50 flex flex-col items-center justify-center p-4">
+    <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm border border-slate-100">
+        <h1 class="text-slate-800 text-2xl font-black italic mb-2 uppercase text-center tracking-tighter">BARRIDO MULTI-TIENDA</h1>
+        <p class="text-slate-400 text-xs font-bold text-center mb-6 uppercase tracking-wider">Módulo de Acceso Logístico</p>
+
+        <div class="space-y-4 mb-6">
+            <div>
+                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Código de Tienda</label>
+                <input type="text" id="login-store" placeholder="Ej: 404" class="w-full bg-slate-100 border-2 border-slate-200 rounded-xl px-4 py-3 text-slate-800 font-bold outline-none focus:border-blue-500 transition">
+            </div>
+            <div>
+                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Contraseña de Acceso</label>
+                <input type="password" id="login-pass" placeholder="••••••••" class="w-full bg-slate-100 border-2 border-slate-200 rounded-xl px-4 py-3 text-slate-800 font-bold outline-none focus:border-blue-500 transition">
+            </div>
+        </div>
+        <button onclick="validarLogin()" class="w-full bg-slate-900 text-white font-black py-4 rounded-xl shadow-lg transition active:scale-95 uppercase text-sm tracking-wide">Ingresar al Sistema</button>
+        <p id="login-error" class="text-red-500 text-xs font-bold text-center mt-3 uppercase tracking-tight hidden">⚠️ Código o contraseña incorrectos</p>
+    </div>
+</div>
+
+<div id="role-selector" class="fixed inset-0 bg-slate-900 z-40 hidden flex flex-col items-center justify-center p-4">
+    <div class="text-center mb-8">
+        <span id="badge-tienda-rol" class="bg-blue-500/20 text-blue-400 border border-blue-500/30 text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-widest">Tienda: --</span>
+        <h1 class="text-white text-3xl font-black italic mt-4 uppercase tracking-tighter">BARRIDO DE PICKING</h1>
+    </div>
     <div class="flex flex-col space-y-4 w-full max-w-xs">
-        <button onclick="initApp('admin')" class="bg-blue-600 text-white font-bold py-5 rounded-2xl shadow-xl transition active:scale-95 text-center">ADMINISTRADOR (CARGAR)</button>
-        <button onclick="initApp('asistente')" class="bg-orange-600 text-white font-bold py-5 rounded-2xl shadow-xl transition active:scale-95 text-center">ASISTENTE (ESCANEAR)</button>
+        <button onclick="initApp('admin')" class="bg-blue-600 text-white font-bold py-5 rounded-2xl shadow-xl transition active:scale-95 text-center uppercase text-sm">ADMINISTRADOR (CARGAR)</button>
+        <button onclick="initApp('asistente')" class="bg-orange-600 text-white font-bold py-5 rounded-2xl shadow-xl transition active:scale-95 text-center uppercase text-sm">ASISTENTE (ESCANEAR)</button>
+        <button onclick="cerrarSesion()" class="text-slate-400 font-bold text-xs uppercase tracking-widest pt-4 hover:text-white transition">Cerrar Sesión</button>
     </div>
 </div>
 
 <main id="main-content" class="hidden min-h-screen p-4">
     <div id="view-admin" class="hidden max-w-[95%] mx-auto">
         <div class="bg-white rounded-3xl shadow-xl border border-slate-200 p-6 mb-8">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-xl font-bold italic uppercase text-slate-700">Consola de Control</h2>
-                <div class="flex gap-2">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                <div>
+                    <span id="badge-tienda-admin" class="bg-slate-100 text-slate-700 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest border border-slate-200">Tienda: --</span>
+                    <h2 class="text-xl font-bold italic uppercase text-slate-700 mt-1">Consola de Control</h2>
+                </div>
+                <div class="flex flex-wrap gap-2">
                     <button onclick="exportarBarrido()" class="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg">EXPORTAR REGISTROS</button>
                     <button onclick="limpiarBaseDeDatos()" class="bg-red-100 text-red-600 px-4 py-2 rounded-xl text-xs font-black">LIMPIAR TODO</button>
-                    <button onclick="location.reload()" class="bg-slate-100 px-4 py-2 rounded-xl text-xs font-bold">SALIR</button>
+                    <button onclick="volverAlMenu()" class="bg-slate-100 px-4 py-2 rounded-xl text-xs font-bold">CAMBIAR ROL</button>
                 </div>
             </div>
 
             <div class="bg-blue-50 border-2 border-dashed border-blue-200 p-8 rounded-3xl text-center mb-8">
                 <input type="file" id="excelFile" class="mb-6 block w-full text-sm text-slate-500 file:mr-4 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-blue-600 file:text-white cursor-pointer">
-                <button id="btnUpload" onclick="uploadLargeFile()" class="bg-slate-900 text-white px-10 py-4 rounded-2xl font-black shadow-lg hover:bg-black transition w-full md:w-auto">SINCRONIZAR NUEVO REPORTE</button>
+                <button id="btnUpload" onclick="uploadLargeFile()" class="bg-slate-900 text-white px-10 py-4 rounded-2xl font-black shadow-lg hover:bg-black transition w-full md:w-auto">SINCRONIZAR REPORTE MAESTRO</button>
                 <div id="uploading-ui" class="hidden mt-8">
                     <div id="progress-bar" class="bg-blue-600 h-4 rounded-full transition-all duration-300" style="width: 0%"></div>
                 </div>
@@ -56,7 +83,7 @@
             </div>
 
             <div class="flex items-center justify-between mb-2">
-                <h3 class="font-black text-red-600 text-[10px] tracking-widest uppercase">⚠️ 1.Excedentes de Días ($\ge$ 7 días retraso - Pendientes de Cliente)</h3>
+                <h3 class="font-black text-red-600 text-[10px] tracking-widest uppercase">⚠️ Excedentes de Días ($\ge$ 7 días retraso - Pendientes de Cliente)</h3>
                 <span id="count-excedentes" class="bg-red-100 text-red-600 text-[9px] font-black px-2 py-0.5 rounded-full">0 ÍTEMS CRÍTICOS</span>
             </div>
             <div class="table-container custom-scrollbar rounded-2xl border-2 border-red-200 mb-6 scroll-limit">
@@ -79,12 +106,12 @@
                     </tr>
                     </thead>
                     <tbody id="panel-excedentes-body" class="divide-y divide-red-100 italic font-medium bg-red-50/10">
-                    <tr><td colspan="13" class="p-4 text-center text-slate-400 font-bold">Cargue un archivo maestro para auditar alertas de tiempo críticas...</td></tr>
+                    <tr><td colspan="13" class="p-4 text-center text-slate-400 font-bold">Cargue un archivo maestro para auditar alertas de tiempo...</td></tr>
                     </tbody>
                 </table>
             </div>
 
-            <h3 class="font-black text-emerald-600 text-[10px] tracking-widest uppercase mb-2">2. Ítems Entregados / Despachados (Escaneados)</h3>
+            <h3 class="font-black text-emerald-600 text-[10px] tracking-widest uppercase mb-2">1. Ítems Entregados / Despachados (Escaneados)</h3>
             <div class="table-container custom-scrollbar rounded-2xl border border-slate-200 mb-6 scroll-limit">
                 <table class="w-full text-left text-[10px]">
                     <thead class="bg-emerald-700 text-white font-bold uppercase sticky top-0 z-10">
@@ -109,7 +136,7 @@
                 </table>
             </div>
 
-            <h3 class="font-black text-red-500 text-[10px] tracking-widest uppercase mb-2">3. Ítems Cancelados (Escaneados)</h3>
+            <h3 class="font-black text-red-500 text-[10px] tracking-widest uppercase mb-2">2. Ítems Cancelados (Escaneados)</h3>
             <div class="table-container custom-scrollbar rounded-2xl border border-slate-200 mb-6 scroll-limit">
                 <table class="w-full text-left text-[10px]">
                     <thead class="bg-red-700 text-white font-bold uppercase sticky top-0 z-10">
@@ -134,7 +161,7 @@
                 </table>
             </div>
 
-            <h3 class="font-black text-slate-400 text-[10px] tracking-widest uppercase mb-2">4. Registros de Escaneo Actual (Flujo General en Vivo)</h3>
+            <h3 class="font-black text-slate-400 text-[10px] tracking-widest uppercase mb-2">3. Registros de Escaneo Actual (Flujo General en Vivo)</h3>
             <div class="table-container custom-scrollbar rounded-2xl border border-slate-200 mb-8 scroll-limit">
                 <table class="w-full text-left text-[10px]">
                     <thead class="bg-slate-800 text-white font-bold uppercase sticky top-0 z-10">
@@ -162,7 +189,7 @@
             <div class="border-t-4 border-slate-100 pt-8">
                 <div class="flex items-center justify-between mb-4">
                     <div>
-                        <h2 class="text-xl font-bold italic uppercase text-red-600">5. Auditoría de Faltantes</h2>
+                        <h2 class="text-xl font-bold italic uppercase text-red-600">4. Auditoría de Faltantes</h2>
                         <p class="text-[10px] font-bold text-slate-400 uppercase">Filtro: Pendientes Cliente y Almacén sin Ubicar</p>
                     </div>
                     <div class="flex gap-2">
@@ -204,7 +231,7 @@
             <div class="flex items-center justify-between mb-3 px-2">
                 <div class="flex items-center gap-2">
                     <div id="sync-dot" class="h-3 w-3 rounded-full bg-slate-600 animate-pulse"></div>
-                    <span id="sync-status-text" class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Verificando...</span>
+                    <span id="sync-status-text" class="text-[10px] font-black text-slate-400 uppercase tracking-widest border-none">Verificando...</span>
                 </div>
                 <span id="sync-count" class="bg-slate-800 text-blue-400 text-[10px] px-3 py-1 rounded-full font-bold border border-slate-700">0 REG</span>
             </div>
@@ -234,6 +261,7 @@
 </main>
 
 <script>
+    // Configuración Base de Firebase
     const firebaseConfig = {
         apiKey: "AIzaSyBgLkFSNiWi9hv8YDTN7nWlxAkVndWiRaU",
         authDomain: "barrido-picking-rihanna.firebaseapp.com",
@@ -245,6 +273,62 @@
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+
+    // Base de datos de contraseñas de tiendas homologadas (puedes añadir las que necesites)
+    const TIENDAS_VALIDAS = {
+        "404": "tarapoto2026", // Ejemplo: Tienda Tarapoto1 es 404
+        "405": "lima2026",
+        "406": "trujillo2026"
+    };
+
+    let TIENDA_ACTUAL = "";
+    let html5QrcodeScanner = null;
+
+    // Al cargar la app, verifica si ya estaba logeado previamente
+    window.addEventListener('DOMContentLoaded', () => {
+        const sesionGuardada = localStorage.getItem('codigoTiendaLogeada');
+        if (sesionGuardada && TIENDAS_VALIDAS[sesionGuardada]) {
+            TIENDA_ACTUAL = sesionGuardada;
+            mostrarPantallaSeleccionRol();
+        }
+    });
+
+    function validarLogin() {
+        const storeInput = document.getElementById('login-store').value.trim();
+        const passInput = document.getElementById('login-pass').value.trim();
+        const errUi = document.getElementById('login-error');
+
+        if (TIENDAS_VALIDAS[storeInput] && TIENDAS_VALIDAS[storeInput] === passInput) {
+            TIENDA_ACTUAL = storeInput;
+            localStorage.setItem('codigoTiendaLogeada', TIENDA_ACTUAL);
+            errUi.classList.add('hidden');
+            mostrarPantallaSeleccionRol();
+        } else {
+            errUi.classList.remove('hidden');
+        }
+    }
+
+    function mostrarPantallaSeleccionRol() {
+        document.getElementById('login-screen').classList.add('hidden');
+        document.getElementById('role-selector').classList.remove('hidden');
+        document.getElementById('badge-tienda-rol').innerText = `TIENDA: ${TIENDA_ACTUAL}`;
+    }
+
+    function cerrarSesion() {
+        localStorage.removeItem('codigoTiendaLogeada');
+        TIENDA_ACTUAL = "";
+        location.reload();
+    }
+
+    function volverAlMenu() {
+        if(html5QrcodeScanner) {
+            html5QrcodeScanner.stop().catch(err => console.log(err));
+        }
+        document.getElementById('main-content').classList.add('hidden');
+        document.getElementById('view-admin').classList.add('hidden');
+        document.getElementById('view-asistente').classList.add('hidden');
+        mostrarPantallaSeleccionRol();
+    }
 
     function getSemaforoClass(dias) {
         if (dias <= 2) return 'semaforo-verde';
@@ -275,40 +359,49 @@
     function initApp(role) {
         document.getElementById('role-selector').classList.add('hidden');
         document.getElementById('main-content').classList.remove('hidden');
+
+        // Limpiar escuchas anteriores si existieran
+        db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).off();
+        db.ref(`tiendas/${TIENDA_ACTUAL}/barridoActual`).off();
+
         if(role === 'admin') {
+            document.getElementById('badge-tienda-admin').innerText = `TIENDA: ${TIENDA_ACTUAL}`;
             document.getElementById('view-admin').classList.remove('hidden');
             escucharMaestroParaExcedentes();
         }
         else {
             document.getElementById('view-asistente').classList.remove('hidden');
             iniciarMonitorSincronizacion();
-            new Html5Qrcode("qr-reader").start({ facingMode: "environment" }, { fps: 20, qrbox: 220 }, onScanSuccess);
-            document.getElementById('manual-input').addEventListener('keypress', (e) => { if (e.key === 'Enter') buscarManual(); });
+            html5QrcodeScanner = new Html5Qrcode("qr-reader");
+            html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 20, qrbox: 220 }, onScanSuccess);
+
+            // Reemplazo del event listener para evitar duplicaciones limpias
+            const mInput = document.getElementById('manual-input');
+            mInput.onkeypress = (e) => { if (e.key === 'Enter') buscarManual(); };
         }
         escucharBarrido();
     }
 
     function iniciarMonitorSincronizacion() {
-        db.ref('masterDAD').on('value', (snap) => {
+        db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).on('value', (snap) => {
             const data = snap.val();
             if (data) {
                 document.getElementById('sync-dot').className = "h-3 w-3 rounded-full bg-emerald-500 glow-sync";
-                document.getElementById('sync-status-text').innerText = "ONLINE";
+                document.getElementById('sync-status-text').innerText = `ONLINE T-${TIENDA_ACTUAL}`;
                 document.getElementById('sync-count').innerText = `${Object.keys(data).length} REG`;
             }
         });
     }
 
-    // --- ESCUCHA DEL MAESTRO CON FILTRO ESPECÍFICO DE ESTADOS SOLICITADOS ---
     function escucharMaestroParaExcedentes() {
-        db.ref('masterDAD').on('value', (snap) => {
+        db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).on('value', (snap) => {
             const data = snap.val();
             const panelExcedentes = document.getElementById('panel-excedentes-body');
             const counterExcedentes = document.getElementById('count-excedentes');
 
             panelExcedentes.innerHTML = "";
             if (!data) {
-                panelExcedentes.innerHTML = `<tr><td colspan="13" class="p-4 text-center text-slate-400 font-bold">Cargue un archivo maestro para auditar alertas de tiempo...</td></tr>`;
+                panelExcedentes.innerHTML = `<tr><td colspan="13" class="p-4 text-center text-slate-400 font-bold">Cargue un archivo maestro para esta tienda...</td></tr>`;
                 counterExcedentes.innerText = "0 ÍTEMS CRÍTICOS";
                 return;
             }
@@ -319,8 +412,6 @@
             itemsMaestros.forEach(m => {
                 const d = calcularRetraso(m.Fecha);
                 const estadoMayuscula = String(m.EstDes || "").toUpperCase();
-
-                // Evalúa estrictamente que tenga >= 7 días AND (Pendiente de Recojo o Pendiente de Despacho)
                 const cumpleEstadoCritico = estadoMayuscula.includes("PENDIENTE DE RECOJO CLIENTE") ||
                                            estadoMayuscula.includes("PENDIENTE DE DESPACHO CLIENTE");
 
@@ -353,9 +444,9 @@
             });
 
             if (totalExcedentes === 0) {
-                panelExcedentes.innerHTML = `<tr><td colspan="13" class="p-4 text-center text-emerald-600 font-black tracking-wide bg-emerald-50/50">🎉 PERFECTO: Sin alertas pendientes de cliente retenidas por más de 7 días.</td></tr>`;
+                panelExcedentes.innerHTML = `<tr><td colspan="13" class="p-4 text-center text-emerald-600 font-black tracking-wide bg-emerald-50/50">🎉 EXCELENTE: No hay alertas críticas retenidas en esta tienda.</td></tr>`;
                 counterExcedentes.className = "bg-emerald-100 text-emerald-700 text-[9px] font-black px-2 py-0.5 rounded-full";
-                counterExcedentes.innerText = "0 ALERTAS CRÍTICAS";
+                counterExcedentes.innerText = "0 ALERTAS";
             } else {
                 counterExcedentes.className = "bg-red-100 text-red-600 text-[9px] font-black px-2 py-0.5 rounded-full animate-pulse";
                 counterExcedentes.innerText = `${totalExcedentes} ÍTEMS CRÍTICOS`;
@@ -408,34 +499,29 @@
             const filteredData = mappedData.map(r => {
                 const summary = nvSummary[r.CodDespacho];
                 let estadoModificado = "";
-
                 if (summary && summary.totalSkus > 1 && summary.totalPendientes > 0) {
                     estadoModificado = "ENTREGA PARCIAL";
                 }
-
-                return {
-                    ...r,
-                    SoloUnSku: lpnCounts[r.LPN] === 1,
-                    EstadoModificado: estadoModificado
-                };
+                return { ...r, SoloUnSku: lpnCounts[r.LPN] === 1, EstadoModificado: estadoModificado };
             });
 
-            await db.ref('masterDAD').set(null);
+            // Se sube aislando por nodo de tienda actual
+            await db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).set(null);
             const chunkSize = 500;
             for (let i = 0; i < filteredData.length; i += chunkSize) {
                 const chunk = filteredData.slice(i, i + chunkSize);
-                await db.ref('masterDAD').update(chunk.reduce((a, c, idx) => { a[i+idx] = c; return a; }, {}));
+                await db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).update(chunk.reduce((a, c, idx) => { a[i+idx] = c; return a; }, {}));
                 bar.style.width = Math.floor((i / filteredData.length) * 100) + "%";
             }
-            document.getElementById('admin-status').innerText = "✅ Sincronizado.";
+            document.getElementById('admin-status').innerText = `✅ Sincronizado para Tienda ${TIENDA_ACTUAL}.`;
             ui.classList.add('hidden');
         };
         reader.readAsArrayBuffer(file);
     }
 
     async function compararFaltantes() {
-        const masterSnap = await db.ref('masterDAD').once('value');
-        const barridoSnap = await db.ref('barridoActual').once('value');
+        const masterSnap = await db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).once('value');
+        const barridoSnap = await db.ref(`tiendas/${TIENDA_ACTUAL}/barridoActual`).once('value');
         const masterData = masterSnap.val() ? Object.values(masterSnap.val()) : [];
         const barridoData = barridoSnap.val() ? Object.values(barridoSnap.val()) : [];
         const yaEscaneados = new Set(barridoData.map(b => `${b.CodDespacho}-${b.LPN}-${b.SKU}`));
@@ -450,15 +536,14 @@
         tableBody.innerHTML = "";
         if(faltantes.length === 0) { alert("🎉 ¡Excelente! No hay faltantes."); return; }
 
-        alert(`Atención: Se identificaron ${faltantes.length} código(s) de despacho que no se registraron.`);
+        alert(`Atención: Se identificaron ${faltantes.length} código(s) de despacho sin escanear.`);
 
         faltantes.forEach(f => {
             const d = calcularRetraso(f.Fecha);
             const mostrarCP = !(f.SoloUnSku && f.CantE === 0);
-
-            let badgeEstado = `<span class="uppercase">${f.EstDes}</span>`;
+            let badgeEstado = `<span>${f.EstDes}</span>`;
             if (f.EstadoModificado === "ENTREGA PARCIAL") {
-                badgeEstado = `<span class="uppercase text-[9px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-black border border-amber-300 shadow-sm">ENTREGA PARCIAL</span>`;
+                badgeEstado = `<span class="text-[9px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-black border border-amber-300 shadow-sm">ENTREGA PARCIAL</span>`;
             }
 
             tableBody.insertAdjacentHTML('beforeend', `
@@ -494,7 +579,7 @@
         if (window.lastInput === inputVal) return;
         window.lastInput = inputVal;
 
-        const snap = await db.ref('masterDAD').once('value');
+        const snap = await db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).once('value');
         const data = snap.val() || [];
         window.matches = Object.values(data).filter(i =>
             i.LPN.toUpperCase() === inputVal.toUpperCase() ||
@@ -508,7 +593,7 @@
         document.getElementById('res-lpn').innerText = inputVal;
 
         if (window.matches.length === 0) {
-            container.innerHTML = `<div class="p-4 text-center font-bold text-slate-500 text-xs">NO SE ENCONTRÓ LPN / NV</div>`;
+            container.innerHTML = `<div class="p-4 text-center font-bold text-slate-500 text-xs">NO SE ENCONTRÓ EN TIENDA ${TIENDA_ACTUAL}</div>`;
         } else {
             let maxDelay = 0;
             let hayAlertaCritica = false;
@@ -516,7 +601,7 @@
                 const d = calcularRetraso(m.Fecha);
                 const est = m.EstDes.toUpperCase();
                 let critico = (est.includes("RECOJO CLIENTE") && d > 7) || (est.includes("DESPACHO CLIENTE") && d > 2);
-                if(critico) { hayAlertaCritica = true; }
+                if(critico) hayAlertaCritica = true;
                 if(d > maxDelay) maxDelay = d;
 
                 let renderEst = m.EstDes;
@@ -553,26 +638,32 @@
 
     async function confirmarYEnviar() {
         if(!window.matches || window.matches.length === 0) return;
-        const barridoSnap = await db.ref('barridoActual').once('value');
+        const barridoSnap = await db.ref(`tiendas/${TIENDA_ACTUAL}/barridoActual`).once('value');
         const barridoData = barridoSnap.val() ? Object.values(barridoSnap.val()) : [];
         const registrosExistentes = new Set(barridoData.map(b => `${b.CodDespacho}-${b.LPN}-${b.SKU}`));
         let nuevosRegistros = 0;
+
         window.matches.forEach(m => {
             const llaveUnica = `${m.CodDespacho}-${m.LPN}-${m.SKU}`;
             if (!registrosExistentes.has(llaveUnica)) {
                 const d = calcularRetraso(m.Fecha);
-                db.ref('barridoActual').push({ ...m, retraso: d, time: new Date().toLocaleTimeString() });
+                db.ref(`tiendas/${TIENDA_ACTUAL}/barridoActual`).push({ ...m, retraso: d, time: new Date().toLocaleTimeString() });
                 nuevosRegistros++;
             }
         });
-        if (nuevosRegistros > 0) alert(`✅ Registrado: ${nuevosRegistros} ítem(s).`);
-        else alert(`⚠️ Omitido: Estos ítems ya están registrados en este LPN.`);
+        if (nuevosRegistros > 0) alert(`✅ Registrado: ${nuevosRegistros} ítem(s) en Tienda ${TIENDA_ACTUAL}.`);
+        else alert(`⚠️ Omitido: Ya registrados en este LPN.`);
         document.getElementById('scan-result').classList.add('hidden');
         window.lastInput = null;
     }
 
     function escucharBarrido() {
-        db.ref('barridoActual').on('child_added', async (snap) => {
+        // Limpiamos los contenedores visuales antes de iniciar la escucha
+        document.getElementById('panel-cancelados-body').innerHTML = "";
+        document.getElementById('panel-entregados-body').innerHTML = "";
+        document.getElementById('admin-table-body').innerHTML = "";
+
+        db.ref(`tiendas/${TIENDA_ACTUAL}/barridoActual`).on('child_added', async (snap) => {
             const v = snap.val();
             const mostrarCP = !(v.SoloUnSku && v.CantE === 0);
             const est = v.EstDes.toUpperCase();
@@ -582,7 +673,7 @@
             let esFiltroExcluido = false;
             let ocultarEnEscaneoActual = false;
 
-            const masterSnap = await db.ref('masterDAD').once('value');
+            const masterSnap = await db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).once('value');
             const masterData = masterSnap.val() ? Object.values(masterSnap.val()) : [];
             const lasFilasDelDespacho = masterData.filter(m => m.CodDespacho === v.CodDespacho);
 
@@ -596,23 +687,22 @@
             else if (est.includes("PENDIENTE DE DESPACHO CLIENTE") || est.includes("PENDIENTE DE RECOJO CLIENTE")) {
                 txtEstado = v.EstDes;
                 esFiltroExcluido = true;
-
                 if (entregadosGlobales > 0 && pendientesGlobales > 0) {
-                    subBadge = '<br><span class="text-[9px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-black border border-amber-300 shadow-sm uppercase tracking-wider inline-block mt-0.5">ENTREGA PARCIAL</span>';
+                    subBadge = '<br><span class="text-[9px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-black border border-amber-300 shadow-sm inline-block mt-0.5">ENTREGA PARCIAL</span>';
                     if (Number(v.CantP || 0) === 0) ocultarEnEscaneoActual = true;
                 } else {
-                    subBadge = '<br><span class="text-[9px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-black border border-slate-300 shadow-sm uppercase tracking-wider inline-block mt-0.5">PENDIENTE</span>';
+                    subBadge = '<br><span class="text-[9px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-black border border-slate-300 shadow-sm inline-block mt-0.5">PENDIENTE</span>';
                 }
             }
             else if (est.includes("ENTREGADO") || v.CantE > 0 || v.EstadoModificado === "ENTREGA PARCIAL") {
                 if (entregadosGlobales > 0 && pendientesGlobales > 0) {
                     txtEstado = "ENTREGA PARCIAL";
-                    subBadge = '<br><span class="text-[9px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-black border border-amber-300 shadow-sm uppercase tracking-wider inline-block mt-0.5">ENTREGA PARCIAL</span>';
+                    subBadge = '<br><span class="text-[9px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-black border border-amber-300 shadow-sm inline-block mt-0.5">ENTREGA PARCIAL</span>';
                     esFiltroExcluido = true;
                     if (Number(v.CantP || 0) === 0) ocultarEnEscaneoActual = true;
                 } else {
                     txtEstado = "ENTREGADO";
-                    subBadge = '<br><span class="text-[9px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-black border border-emerald-300 shadow-sm uppercase tracking-wider inline-block mt-0.5">ENTREGADO REVISAR</span>';
+                    subBadge = '<br><span class="text-[9px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-black border border-emerald-300 shadow-sm inline-block mt-0.5">ENTREGADO REVISAR</span>';
                 }
             }
 
@@ -639,7 +729,6 @@
             } else if (!esFiltroExcluido) {
                 document.getElementById('panel-entregados-body').insertAdjacentHTML('afterbegin', row);
             }
-
             if (!ocultarEnEscaneoActual) {
                 document.getElementById('admin-table-body').insertAdjacentHTML('afterbegin', row);
             }
@@ -647,7 +736,7 @@
     }
 
     async function exportarBarrido() {
-        const snap = await db.ref('barridoActual').once('value');
+        const snap = await db.ref(`tiendas/${TIENDA_ACTUAL}/barridoActual`).once('value');
         const data = snap.val();
         if (!data) return alert("No hay datos.");
         const exportData = Object.values(data).map(r => ({
@@ -659,12 +748,12 @@
         const ws = XLSX.utils.json_to_sheet(exportData);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Barrido");
-        XLSX.writeFile(wb, `REPORTE_BARRIDO_${new Date().toISOString().split('T')[0]}.xlsx`);
+        XLSX.writeFile(wb, `BARRIDO_TIENDA_${TIENDA_ACTUAL}_${new Date().toISOString().split('T')[0]}.xlsx`);
     }
 
     async function exportarFaltantesExcel() {
-        const masterSnap = await db.ref('masterDAD').once('value');
-        const barridoSnap = await db.ref('barridoActual').once('value');
+        const masterSnap = await db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).once('value');
+        const barridoSnap = await db.ref(`tiendas/${TIENDA_ACTUAL}/barridoActual`).once('value');
         const masterData = masterSnap.val() ? Object.values(masterSnap.val()) : [];
         const barridoData = barridoSnap.val() ? Object.values(barridoSnap.val()) : [];
         const yaEscaneados = new Set(barridoData.map(b => `${b.CodDespacho}-${b.LPN}-${b.SKU}`));
@@ -683,20 +772,17 @@
         const ws = XLSX.utils.json_to_sheet(faltantes);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Faltantes");
-        XLSX.writeFile(wb, `AUDITORIA_FALTANTES_${new Date().toISOString().split('T')[0]}.xlsx`);
+        XLSX.writeFile(wb, `FALTANTES_TIENDA_${TIENDA_ACTUAL}_${new Date().toISOString().split('T')[0]}.xlsx`);
     }
 
     function limpiarBaseDeDatos() {
-        if(confirm("¿Estás seguro? Se borrará el MASTER y los ESCANEOS para cargar un nuevo archivo.")) {
+        if(confirm(`¿Estás seguro? Se borrará TODO únicamente para la Tienda ${TIENDA_ACTUAL}.`)) {
             Promise.all([
-                db.ref('masterDAD').remove(),
-                db.ref('barridoActual').remove()
+                db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).remove(),
+                db.ref(`tiendas/${TIENDA_ACTUAL}/barridoActual`).remove()
             ]).then(() => {
-                alert("✅ Base de datos limpia.");
+                alert(`✅ Base de datos limpia para Tienda ${TIENDA_ACTUAL}.`);
                 location.reload();
-            }).catch((error) => {
-                console.error("Error Firebase:", error);
-                alert("Error de permisos en Firebase. Verifica las reglas de tu base de datos.");
             });
         }
     }
