@@ -84,7 +84,10 @@
 
             <div class="flex items-center justify-between mb-2">
                 <h3 class="font-black text-red-600 text-[10px] tracking-widest uppercase">⚠️ Excedentes de Días ($\ge$ 7 días retraso - Pendientes de Cliente)</h3>
-                <span id="count-excedentes" class="bg-red-100 text-red-600 text-[9px] font-black px-2 py-0.5 rounded-full">0 ÍTEMS CRÍTICOS</span>
+                <div class="flex items-center gap-2">
+                    <button onclick="exportarExcedentesExcel()" class="bg-red-600 hover:bg-red-700 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-sm transition active:scale-95 uppercase tracking-wider">📊 EXPORTAR EXCEDENTES</button>
+                    <span id="count-excedentes" class="bg-red-100 text-red-600 text-[9px] font-black px-2 py-0.5 rounded-full">0 ÍTEMS CRÍTICOS</span>
+                </div>
             </div>
             <div class="table-container custom-scrollbar rounded-2xl border-2 border-red-200 mb-6 scroll-limit">
                 <table class="w-full text-left text-[10px]">
@@ -111,7 +114,10 @@
                 </table>
             </div>
 
-            <h3 class="font-black text-emerald-600 text-[10px] tracking-widest uppercase mb-2">1. Ítems Entregados / Despachados (Escaneados)</h3>
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="font-black text-emerald-600 text-[10px] tracking-widest uppercase">1. Ítems Entregados / Despachados (Escaneados)</h3>
+                <button onclick="exportarEntregadosExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-sm transition active:scale-95 uppercase tracking-wider">📊 EXPORTAR ENTREGADOS</button>
+            </div>
             <div class="table-container custom-scrollbar rounded-2xl border border-slate-200 mb-6 scroll-limit">
                 <table class="w-full text-left text-[10px]">
                     <thead class="bg-emerald-700 text-white font-bold uppercase sticky top-0 z-10">
@@ -136,7 +142,10 @@
                 </table>
             </div>
 
-            <h3 class="font-black text-red-500 text-[10px] tracking-widest uppercase mb-2">2. Ítems Cancelados (Escaneados)</h3>
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="font-black text-red-500 text-[10px] tracking-widest uppercase mb-2">2. Ítems Cancelados (Escaneados)</h3>
+                <button onclick="exportarCanceladosExcel()" class="bg-red-500 hover:bg-red-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-sm transition active:scale-95 uppercase tracking-wider">📊 EXPORTAR CANCELADOS</button>
+            </div>
             <div class="table-container custom-scrollbar rounded-2xl border border-slate-200 mb-6 scroll-limit">
                 <table class="w-full text-left text-[10px]">
                     <thead class="bg-red-700 text-white font-bold uppercase sticky top-0 z-10">
@@ -274,11 +283,11 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Base de datos de contraseñas de tiendas homologadas (puedes añadir las que necesites)
+    // Base de datos de contraseñas de tiendas homologadas
     const TIENDAS_VALIDAS = {
-        "404": "tarapoto2026", // Ejemplo: Tienda Tarapoto1 es 404
-        "502": "pro2026",
-        "406": "trujillo2026"
+        "404": "tarapoto2026",
+        "405": "2tarapoto2026",
+        "502": "pro2026"
     };
 
     let TIENDA_ACTUAL = "";
@@ -348,19 +357,37 @@
         return dias > 0 ? dias : 0;
     }
 
+    /* =========================================================================
+       REGLA DE HOMOLOGACIÓN CORREGIDA SEGÚN TUS ESPECIFICACIONES EXACTAS
+       ========================================================================= */
     function homologarCanal(canalRaw) {
-        let canalVisual = String(canalRaw || "").trim();
-        const canalEvaluado = canalVisual.replace(/\s+/g, '').toUpperCase();
-        if (canalEvaluado === "ONESTORE" || canalEvaluado === "STOREQUOTE") return "Retail";
-        if (canalEvaluado === "SALECOMPANY" || canalEvaluado === "REDIQUOTE" || canalEvaluado === "ECOMMERCEB2B") return "VV.EE";
-        return canalVisual === "" ? "-" : canalVisual;
+    let canalVisual = String(canalRaw || "").trim();
+    const canalEvaluado = canalVisual.replace(/\s+/g, '').toUpperCase();
+
+    // --- CASO ESPECIAL EXCLUSIVO TIENDA 502 ---
+    // Si la tienda activa es la 502 y viene MARKETPLACE, se transforma en "Seller"
+    if (String(TIENDA_ACTUAL) === "502" && canalEvaluado === "MARKETPLACE") {
+        return "Seller";
     }
+
+    // --- REGLAS GENERALES PARA LA 404 Y DEMÁS TIENDAS ---
+    // Regla 1: Variantes de Ecommerce se quedan como tal en la tabla
+    if (canalEvaluado.includes("ECOM") && canalEvaluado !== "ECOMMERCEB2B") return "ECOMMERCE";
+
+    // Regla 2: One Store y Store Quote aparecen como Retail
+    if (canalEvaluado === "ONESTORE" || canalEvaluado === "STOREQUOTE") return "Retail";
+
+    // Regla 3: Sale Company, Redi Quote y Ecommerce B2B aparecen como VV.EE
+    if (canalEvaluado === "SALECOMPANY" || canalEvaluado === "REDIQUOTE" || canalEvaluado === "ECOMMERCEB2B") return "VV.EE";
+
+    // Si viene cualquier otro canal que no coincida con las reglas, se muestra tal cual
+    return canalVisual === "" ? "-" : canalVisual;
+}
 
     function initApp(role) {
         document.getElementById('role-selector').classList.add('hidden');
         document.getElementById('main-content').classList.remove('hidden');
 
-        // Limpiar escuchas anteriores si existieran
         db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).off();
         db.ref(`tiendas/${TIENDA_ACTUAL}/barridoActual`).off();
 
@@ -375,7 +402,6 @@
             html5QrcodeScanner = new Html5Qrcode("qr-reader");
             html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 20, qrbox: 220 }, onScanSuccess);
 
-            // Reemplazo del event listener para evitar duplicaciones limpias
             const mInput = document.getElementById('manual-input');
             mInput.onkeypress = (e) => { if (e.key === 'Enter') buscarManual(); };
         }
@@ -401,13 +427,22 @@
 
             panelExcedentes.innerHTML = "";
             if (!data) {
-                panelExcedentes.innerHTML = `<tr><td colspan="13" class="p-4 text-center text-slate-400 font-bold">Cargue un archivo maestro para esta tienda...</td></tr>`;
+                panelExcedentes.innerHTML = `<tr><td colspan="14" class="p-4 text-center text-slate-400 font-bold">Cargue un archivo maestro para esta tienda...</td></tr>`;
                 counterExcedentes.innerText = "0 ÍTEMS CRÍTICOS";
                 return;
             }
 
             const itemsMaestros = Object.values(data);
             let totalExcedentes = 0;
+
+            const resumenDespachosRealtime = {};
+            itemsMaestros.forEach(item => {
+                if (!resumenDespachosRealtime[item.CodDespacho]) {
+                    resumenDespachosRealtime[item.CodDespacho] = { entregados: 0, pendientes: 0 };
+                }
+                resumenDespachosRealtime[item.CodDespacho].entregados += Number(item.CantE || 0);
+                resumenDespachosRealtime[item.CodDespacho].pendientes += Number(item.CantP || 0);
+            });
 
             itemsMaestros.forEach(m => {
                 const d = calcularRetraso(m.Fecha);
@@ -420,31 +455,33 @@
                     const mostrarCP = !(m.SoloUnSku && m.CantE === 0);
                     let txtEstado = m.EstDes;
 
-                    if (m.EstadoModificado === "ENTREGA PARCIAL") {
+                    const infoDespacho = resumenDespachosRealtime[m.CodDespacho];
+                    if (infoDespacho && infoDespacho.entregados > 0 && infoDespacho.pendientes > 0) {
                         txtEstado = `<span class="text-[9px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-black border border-amber-300 shadow-sm">ENTREGA PARCIAL</span>`;
                     }
 
                     panelExcedentes.insertAdjacentHTML('beforeend', `
-                        <tr class="bg-red-50/20 hover:bg-red-100/40">
-                            <td class="p-3 border-b border-red-100 font-bold text-slate-700">${m.CodDespacho}</td>
-                            <td class="p-3 border-b border-red-100 font-mono font-black">${m.LPN}</td>
-                            <td class="p-3 border-b border-red-100 text-blue-600 font-bold">${m.SKU}</td>
-                            <td class="p-3 border-b border-red-100 max-w-[150px] truncate">${m.Descripcion}</td>
-                            <td class="p-3 border-b border-red-100 text-center font-bold">${m.CantT}</td>
-                            <td class="p-3 border-b border-red-100 text-center font-bold text-emerald-600">${m.CantE}</td>
-                            <td class="p-3 border-b border-red-100 text-center font-bold text-orange-600">${mostrarCP ? m.CantP : '-'}</td>
-                            <td class="p-3 border-b border-red-100 text-center font-bold text-red-600">${m.CantC}</td>
-                            <td class="p-3 border-b border-red-100 text-center"><span class="${getSemaforoClass(d)}">${d}d</span></td>
-                            <td class="p-3 border-b border-red-100 font-black text-slate-800">${txtEstado}</td>
-                            <td class="p-3 border-b border-red-100 max-w-[120px] truncate">${m.NombreCliente}</td>
-                            <td class="p-3 border-b border-red-100">${m.Modalidad}</td>
-                            <td class="p-3 border-b border-red-100 font-bold text-slate-700">${homologarCanal(m.Canal)}</td>
+                        <tr class="hover:bg-orange-100/50">
+                            <td class="p-3 border-b font-bold text-slate-700">${m.CodDespacho}</td>
+                            <td class="p-3 border-b font-mono font-black">${m.LPN}</td>
+                            <td class="p-3 border-b text-blue-600 font-bold">${m.SKU}</td>
+                            <td class="p-3 border-b truncate max-w-[150px]">${m.Descripcion}</td>
+                            <td class="p-3 border-b font-bold text-violet-700">${m.Ubicacion || "-"}</td>
+                            <td class="p-3 border-b text-center font-bold">${m.CantT}</td>
+                            <td class="p-3 border-b text-center font-bold text-emerald-600">${m.CantE}</td>
+                            <td class="p-3 border-b text-center font-black text-orange-600">${mostrarCP ? m.CantP : '-'}</td>
+                            <td class="p-3 border-b text-center font-bold text-red-600">${m.CantC}</td>
+                            <td class="p-3 border-b text-center"><span class="${getSemaforoClass(d)}">${d}d</span></td>
+                            <td class="p-3 border-b font-black text-slate-800">${txtEstado}</td>
+                            <td class="p-3 border-b truncate max-w-[120px]">${m.NombreCliente}</td>
+                            <td class="p-3 border-b">${m.Modalidad}</td>
+                            <td class="p-3 border-b font-bold text-slate-700">${homologarCanal(m.Canal)}</td>
                         </tr>`);
                 }
             });
 
             if (totalExcedentes === 0) {
-                panelExcedentes.innerHTML = `<tr><td colspan="13" class="p-4 text-center text-emerald-600 font-black tracking-wide bg-emerald-50/50">🎉 EXCELENTE: No hay alertas críticas retenidas en esta tienda.</td></tr>`;
+                panelExcedentes.innerHTML = `<tr><td colspan="14" class="p-4 text-center text-emerald-600 font-black tracking-wide bg-emerald-50/50">🎉 EXCELENTE: No hay alertas críticas retenidas en esta tienda.</td></tr>`;
                 counterExcedentes.className = "bg-emerald-100 text-emerald-700 text-[9px] font-black px-2 py-0.5 rounded-full";
                 counterExcedentes.innerText = "0 ALERTAS";
             } else {
@@ -461,59 +498,138 @@
         const bar = document.getElementById('progress-bar');
         ui.classList.remove('hidden');
 
+        const mapaUnificado = {};
+
+        if (String(TIENDA_ACTUAL) === "502") {
+            const snapExistente = await db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).once('value');
+            const dataExistente = snapExistente.val() ? Object.values(snapExistente.val()) : [];
+
+            dataExistente.forEach(item => {
+                const despBase = String(item.CodDespacho).split('-')[0].trim();
+                const skuBase = String(item.SKU).split('-')[0].trim();
+                const llaveBase = `${despBase}-${item.LPN}-${skuBase}`;
+
+                mapaUnificado[llaveBase] = item;
+            });
+        }
+
         const reader = new FileReader();
         reader.onload = async (e) => {
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
             const rawData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
 
-            const mappedData = rawData.map(r => ({
-                CodDespacho: String(r["Código de despacho"] || "").trim(),
-                LPN: String(r["LPN"] || r["Código de despacho"] || "").trim(),
-                SKU: String(r["SKU"] || "").trim(),
-                Descripcion: String(r["Descripción"] || "").trim(),
-                CantT: Number(r["Cantidad total"] || 0),
-                CantE: Number(r["Cantidad entregada"] || 0),
-                CantP: Number(r["Cantidad pendiente"] || 0),
-                CantC: Number(r["Cantidad cancelada"] || 0),
-                Fecha: r["Fecha original de entrega"] || r["Fecha de entrega"] || "",
-                EstDes: String(r["Estado de despacho"] || "").trim(),
-                EstRet: String(r["Estado de retiro"] || "").trim(),
-                NombreCliente: String(r["Nombre de cliente"] || "").trim(),
-                Modalidad: String(r["Modalidad de despacho"] || "").trim(),
-                Canal: String(r["Canal de venta"] || "").trim()
-            })).filter(r => r.LPN !== "");
+            rawData.forEach(r => {
+                let codDespachoRaw = "";
+                if (r["Código Despacho"] !== undefined) codDespachoRaw = String(r["Código Despacho"]).trim();
+                else if (r["Código de despacho"] !== undefined) codDespachoRaw = String(r["Código de despacho"]).trim();
+
+                const lpn = String(r["LPN"] || r["Código Despacho"] || r["Código de despacho"] || "").trim();
+                const skuRaw = String(r["SKU"] || "").trim();
+
+                if (!codDespachoRaw || !lpn || !skuRaw) return;
+
+                const despBaseActual = codDespachoRaw.split('-')[0].trim();
+                const skuBaseActual = skuRaw.split('-')[0].trim();
+                const llaveBaseActual = `${despBaseActual}-${lpn}-${skuBaseActual}`;
+
+                let ubicacionDetectada = "-";
+                if (r["Ubicación"] !== undefined && String(r["Ubicación"]).trim() !== "" && String(r["Ubicación"]).trim() !== "LIMA") {
+                    ubicacionDetectada = String(r["Ubicación"]).trim();
+                } else if (r["Ubicacion"] !== undefined && String(r["Ubicacion"]).trim() !== "" && String(r["Ubicacion"]).trim() !== "LIMA") {
+                    ubicacionDetectada = String(r["Ubicacion"]).trim();
+                }
+
+                let canalDetectado = "";
+                if (r["Canal de venta"] !== undefined) {
+                    canalDetectado = String(r["Canal de venta"]).trim();
+                } else if (r["Canal"] !== undefined) {
+                    canalDetectado = String(r["Canal"]).trim();
+                }
+
+                if (!canalDetectado) canalDetectado = "ECOMMERCE";
+
+                // Aplicar guardado en base limpia respetando la homologación en renderizado
+                canalDetectado = canalDetectado.trim();
+
+                const descripcion = String(r["Descripción"] || r["Descripcion"] || "").trim();
+                const cantT = Number(r["Cantidad total"] || r["Q Total"] || 0);
+                const cantE = Number(r["Cantidad entregada"] || r["Q Entregada"] || 0);
+                const cantP = Number(r["Cantidad pendiente"] || r["Q Pendiente"] || 0);
+                const cantC = Number(r["Cantidad cancelada"] || r["Q Cancelada"] || r["Q Devuelta"] || 0);
+                const fecha = r["Fecha original de entrega"] || r["Fecha de entrega"] || r["Fecha Comprometida"] || "";
+                const estDes = String(r["Estado de despacho"] || r["Estado Despacho"] || "").trim();
+                const nombreCliente = String(r["Nombre de cliente"] || r["Cliente"] || "").trim();
+                const modalidad = String(r["Modalidad de despacho"] || r["Modalidad"] || "").trim();
+
+                if (mapaUnificado[llaveBaseActual]) {
+                    if (codDespachoRaw.includes('-')) {
+                        mapaUnificado[llaveBaseActual].CodDespacho = codDespachoRaw;
+                    }
+                    if (skuRaw.includes('-')) {
+                        mapaUnificado[llaveBaseActual].SKU = skuRaw;
+                    }
+                    if ((mapaUnificado[llaveBaseActual].Ubicacion === "-" || mapaUnificado[llaveBaseActual].Ubicacion === "LIMA") && ubicacionDetectada !== "-") {
+                        mapaUnificado[llaveBaseActual].Ubicacion = ubicacionDetectada;
+                    }
+                    if (estDes) mapaUnificado[llaveBaseActual].EstDes = estDes;
+                    if (cantE > 0) mapaUnificado[llaveBaseActual].CantE = cantE;
+                    if (cantP > 0) mapaUnificado[llaveBaseActual].CantP = cantP;
+                    if (canalDetectado) mapaUnificado[llaveBaseActual].Canal = canalDetectado;
+                } else {
+                    mapaUnificado[llaveBaseActual] = {
+                        CodDespacho: codDespachoRaw,
+                        LPN: lpn,
+                        SKU: skuRaw,
+                        Descripcion: descripcion,
+                        Ubicacion: ubicacionDetectada,
+                        CantT: cantT,
+                        CantE: cantE,
+                        CantP: cantP,
+                        CantC: cantC,
+                        Fecha: fecha,
+                        EstDes: estDes,
+                        NombreCliente: nombreCliente,
+                        Modalidad: modalidad,
+                        Canal: canalDetectado
+                    };
+                }
+            });
+
+            const listaCombinada = Object.values(mapaUnificado);
 
             const nvSummary = {};
-            mappedData.forEach(r => {
+            listaCombinada.forEach(r => {
                 if (!nvSummary[r.CodDespacho]) {
-                    nvSummary[r.CodDespacho] = { totalSkus: 0, totalPendientes: 0 };
+                    nvSummary[r.CodDespacho] = { totalSkus: 0, totalPendientes: 0, totalEntregados: 0 };
                 }
                 nvSummary[r.CodDespacho].totalSkus += 1;
-                nvSummary[r.CodDespacho].totalPendientes += r.CantP;
+                nvSummary[r.CodDespacho].totalPendientes += Number(r.CantP || 0);
+                nvSummary[r.CodDespacho].totalEntregados += Number(r.CantE || 0);
             });
 
             const lpnCounts = {};
-            mappedData.forEach(r => { lpnCounts[r.LPN] = (lpnCounts[r.LPN] || 0) + 1; });
+            listaCombinada.forEach(r => { lpnCounts[r.LPN] = (lpnCounts[r.LPN] || 0) + 1; });
 
-            const filteredData = mappedData.map(r => {
+            const finalData = listaCombinada.map(r => {
                 const summary = nvSummary[r.CodDespacho];
                 let estadoModificado = "";
-                if (summary && summary.totalSkus > 1 && summary.totalPendientes > 0) {
+                if (summary && summary.totalPendientes > 0 && summary.totalEntregados > 0) {
                     estadoModificado = "ENTREGA PARCIAL";
                 }
                 return { ...r, SoloUnSku: lpnCounts[r.LPN] === 1, EstadoModificado: estadoModificado };
             });
 
-            // Se sube aislando por nodo de tienda actual
             await db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).set(null);
+
             const chunkSize = 500;
-            for (let i = 0; i < filteredData.length; i += chunkSize) {
-                const chunk = filteredData.slice(i, i + chunkSize);
+            for (let i = 0; i < finalData.length; i += chunkSize) {
+                const chunk = finalData.slice(i, i + chunkSize);
                 await db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).update(chunk.reduce((a, c, idx) => { a[i+idx] = c; return a; }, {}));
-                bar.style.width = Math.floor((i / filteredData.length) * 100) + "%";
+                bar.style.width = Math.floor((i / finalData.length) * 100) + "%";
             }
-            document.getElementById('admin-status').innerText = `✅ Sincronizado para Tienda ${TIENDA_ACTUAL}.`;
+
+            document.getElementById('admin-status').innerText = `✅ Sincronizado correctamente para Tienda ${TIENDA_ACTUAL}. Total únicos: ${finalData.length}`;
             ui.classList.add('hidden');
         };
         reader.readAsArrayBuffer(file);
@@ -534,33 +650,53 @@
 
         const tableBody = document.getElementById('audit-table-body');
         tableBody.innerHTML = "";
-        if(faltantes.length === 0) { alert("🎉 ¡Excelente! No hay faltantes."); return; }
+
+        if(faltantes.length === 0) {
+            alert("🎉 ¡Excelente! No hay faltantes.");
+            document.getElementById('audit-container').classList.add('hidden');
+            return;
+        }
 
         alert(`Atención: Se identificaron ${faltantes.length} código(s) de despacho sin escanear.`);
+
+        const resumenFaltantesRealtime = {};
+        masterData.forEach(item => {
+            if (!resumenFaltantesRealtime[item.CodDespacho]) {
+                resumenFaltantesRealtime[item.CodDespacho] = { entregados: 0, pendientes: 0 };
+            }
+            resumenFaltantesRealtime[item.CodDespacho].entregados += Number(item.CantE || 0);
+            resumenFaltantesRealtime[item.CodDespacho].pendientes += Number(item.CantP || 0);
+        });
+
+        garantizarEstructuraTablas();
 
         faltantes.forEach(f => {
             const d = calcularRetraso(f.Fecha);
             const mostrarCP = !(f.SoloUnSku && f.CantE === 0);
+
+            const infoDespacho = resumenFaltantesRealtime[f.CodDespacho];
             let badgeEstado = `<span>${f.EstDes}</span>`;
-            if (f.EstadoModificado === "ENTREGA PARCIAL") {
+
+            if (infoDespacho && infoDespacho.entregados > 0 && infoDespacho.pendientes > 0) {
                 badgeEstado = `<span class="text-[9px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-black border border-amber-300 shadow-sm">ENTREGA PARCIAL</span>`;
             }
 
             tableBody.insertAdjacentHTML('beforeend', `
                 <tr class="hover:bg-orange-100/50">
-                    <td class="p-3 border-b border-orange-100 font-bold">${f.CodDespacho}</td>
-                    <td class="p-3 border-b border-orange-100 font-black">${f.LPN}</td>
-                    <td class="p-3 border-b border-orange-100 font-bold">${f.SKU}</td>
-                    <td class="p-3 border-b border-orange-100 truncate max-w-[150px]">${f.Descripcion}</td>
-                    <td class="p-3 border-b border-orange-100 text-center font-bold">${f.CantT}</td>
-                    <td class="p-3 border-b border-orange-100 text-center font-bold text-emerald-600">${f.CantE}</td>
-                    <td class="p-3 border-b border-orange-100 text-center font-black text-orange-600">${mostrarCP ? f.CantP : '-'}</td>
-                    <td class="p-3 border-b border-orange-100 text-center font-bold text-red-600">${f.CantC}</td>
-                    <td class="p-3 border-b border-orange-100 text-center"><span class="${getSemaforoClass(d)}">${d}d</span></td>
-                    <td class="p-3 border-b border-orange-100 font-black">${badgeEstado}</td>
-                    <td class="p-3 border-b border-orange-100 truncate max-w-[100px]">${f.NombreCliente}</td>
-                    <td class="p-3 border-b border-orange-100">${f.Modalidad}</td>
-                    <td class="p-3 border-b border-orange-100">${f.Canal || "-"}</td>
+                    <td class="p-3 border-b font-bold text-slate-700">${f.CodDespacho}</td>
+                    <td class="p-3 border-b font-mono font-black">${f.LPN}</td>
+                    <td class="p-3 border-b text-blue-600 font-bold">${f.SKU}</td>
+                    <td class="p-3 border-b truncate max-w-[150px]">${f.Descripcion}</td>
+                    <td class="p-3 border-b font-bold text-violet-700">${f.Ubicacion || "-"}</td>
+                    <td class="p-3 border-b text-center font-bold">${f.CantT}</td>
+                    <td class="p-3 border-b text-center font-bold text-emerald-600">${f.CantE}</td>
+                    <td class="p-3 border-b text-center font-black text-orange-600">${mostrarCP ? f.CantP : '-'}</td>
+                    <td class="p-3 border-b text-center font-bold text-red-600">${f.CantC}</td>
+                    <td class="p-3 border-b text-center"><span class="${getSemaforoClass(d)}">${d}d</span></td>
+                    <td class="p-3 border-b font-black text-slate-800">${badgeEstado}</td>
+                    <td class="p-3 border-b truncate max-w-[100px]">${f.NombreCliente}</td>
+                    <td class="p-3 border-b">${f.Modalidad}</td>
+                    <td class="p-3 border-b font-bold text-slate-700">${homologarCanal(f.Canal)}</td>
                 </tr>`);
         });
         document.getElementById('audit-container').classList.remove('hidden');
@@ -620,13 +756,13 @@
                         <div class="flex justify-between items-center mb-1">
                             <span class="text-blue-400 font-black text-[10px]">SKU: ${m.SKU}</span>
                             <div class="flex gap-2">
-                                <span class="text-[9px] text-slate-400 font-bold uppercase">Cant: ${m.CantT}</span>
+                                <span class="text-[9px] text-slate-400 font-bold uppercase">Ubic: ${m.Ubicacion || "-"}</span>
                                 <span class="text-[9px] font-black ${getSemaforoClass(d).replace('semaforo-', 'text-')}">${d}d retraso</span>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-1">
                             <div><p class="text-[7px] text-slate-500 uppercase font-bold text-center">Despacho</p><p class="text-[9px] font-bold text-center text-min">${renderEst}</p></div>
-                            <div><p class="text-[7px] text-slate-500 uppercase font-bold text-center">Retiro</p><p class="text-[9px] font-bold text-orange-200 text-center text-min">${m.EstRet}</p></div>
+                            <div><p class="text-[7px] text-slate-500 uppercase font-bold text-center">Retiro</p><p class="text-[9px] font-bold text-orange-200 text-center text-min">${m.EstRet || "-"}</p></div>
                         </div>
                     </div>`);
             });
@@ -634,6 +770,32 @@
                 ? `<div class="delay-alert bg-red-600 text-white p-2 rounded-xl text-center font-black text-sm uppercase italic">⚠️ ALERTA CRÍTICA: ${maxDelay} DÍAS</div>`
                 : `<div class="bg-slate-700 text-emerald-400 p-2 rounded-xl text-center font-black text-[10px] uppercase tracking-widest">ESTADO: ${maxDelay} DÍAS</div>`;
         }
+    }
+
+    function garantizarEstructuraTablas() {
+        const selectoresTablas = [
+            '#panel-excedentes-body',
+            '#panel-cancelados-body',
+            '#panel-entregados-body',
+            '#admin-table-body',
+            '#audit-table-body'
+        ];
+        selectoresTablas.forEach(sel => {
+            const tbody = document.querySelector(sel);
+            if(tbody) {
+                const tabla = tbody.closest('table');
+                const thead = tabla ? tabla.querySelector('thead tr') : null;
+                if(thead && !thead.innerHTML.includes('UBICACIÓN')) {
+                    const ths = Array.from(thead.children);
+                    if(ths.length >= 4) {
+                        const nuevoTh = document.createElement('th');
+                        nuevoTh.className = "p-3 border-b font-bold text-[10px] uppercase tracking-wider text-left";
+                        nuevoTh.innerText = "UBICACIÓN";
+                        thead.insertBefore(nuevoTh, ths[4]);
+                    }
+                }
+            }
+        });
     }
 
     async function confirmarYEnviar() {
@@ -658,12 +820,14 @@
     }
 
     function escucharBarrido() {
-        // Limpiamos los contenedores visuales antes de iniciar la escucha
+        garantizarEstructuraTablas();
         document.getElementById('panel-cancelados-body').innerHTML = "";
         document.getElementById('panel-entregados-body').innerHTML = "";
         document.getElementById('admin-table-body').innerHTML = "";
 
-        db.ref(`tiendas/${TIENDA_ACTUAL}/barridoActual`).on('child_added', async (snap) => {
+        const tiendaSincronizada = TIENDA_ACTUAL;
+
+        db.ref(`tiendas/${tiendaSincronizada}/barridoActual`).on('child_added', async (snap) => {
             const v = snap.val();
             const mostrarCP = !(v.SoloUnSku && v.CantE === 0);
             const est = v.EstDes.toUpperCase();
@@ -673,10 +837,16 @@
             let esFiltroExcluido = false;
             let ocultarEnEscaneoActual = false;
 
-            const masterSnap = await db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).once('value');
+            const masterSnap = await db.ref(`tiendas/${tiendaSincronizada}/masterDAD`).once('value');
             const masterData = masterSnap.val() ? Object.values(masterSnap.val()) : [];
-            const lasFilasDelDespacho = masterData.filter(m => m.CodDespacho === v.CodDespacho);
 
+            const itemMaestroOcurrencia = masterData.find(m =>
+                m.CodDespacho === v.CodDespacho && m.LPN === v.LPN && m.SKU === v.SKU
+            );
+
+            const ubicacionReal = itemMaestroOcurrencia ? (itemMaestroOcurrencia.Ubicacion || "-") : (v.Ubicacion || "-");
+
+            const lasFilasDelDespacho = masterData.filter(m => m.CodDespacho === v.CodDespacho);
             const pendientesGlobales = lasFilasDelDespacho.reduce((sum, item) => sum + Number(item.CantP || 0), 0);
             const entregadosGlobales = lasFilasDelDespacho.reduce((sum, item) => sum + Number(item.CantE || 0), 0);
 
@@ -685,12 +855,13 @@
                 subBadge = '<br><span class="text-[8px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-black border border-red-300 shadow-sm">CANCELADO</span>';
             }
             else if (est.includes("PENDIENTE DE DESPACHO CLIENTE") || est.includes("PENDIENTE DE RECOJO CLIENTE")) {
-                txtEstado = v.EstDes;
                 esFiltroExcluido = true;
                 if (entregadosGlobales > 0 && pendientesGlobales > 0) {
+                    txtEstado = "ENTREGA PARCIAL";
                     subBadge = '<br><span class="text-[9px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-black border border-amber-300 shadow-sm inline-block mt-0.5">ENTREGA PARCIAL</span>';
                     if (Number(v.CantP || 0) === 0) ocultarEnEscaneoActual = true;
                 } else {
+                    txtEstado = v.EstDes;
                     subBadge = '<br><span class="text-[9px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-black border border-slate-300 shadow-sm inline-block mt-0.5">PENDIENTE</span>';
                 }
             }
@@ -712,6 +883,7 @@
                     <td class="p-3 border-b font-mono font-black">${v.LPN}</td>
                     <td class="p-3 border-b text-blue-600 font-bold">${v.SKU}</td>
                     <td class="p-3 border-b max-w-[150px] truncate">${v.Descripcion}</td>
+                    <td class="p-3 border-b max-w-[120px] truncate font-bold text-violet-700 bg-violet-50/10">${ubicacionReal}</td>
                     <td class="p-3 border-b text-center font-bold">${v.CantT}</td>
                     <td class="p-3 border-b text-center font-bold text-emerald-600">${v.CantE}</td>
                     <td class="p-3 border-b text-center font-bold text-orange-600">${mostrarCP ? v.CantP : '-'}</td>
@@ -740,9 +912,9 @@
         const data = snap.val();
         if (!data) return alert("No hay datos.");
         const exportData = Object.values(data).map(r => ({
-            "Código de despacho": r.CodDespacho, "LPN": r.LPN, "SKU": r.SKU, "Descripción": r.Descripcion,
+            "Código de despacho": r.CodDespacho, "LPN": r.LPN, "SKU": r.SKU, "Descripción": r.Descripcion, "Ubicación": r.Ubicacion || "-",
             "Cantidad total": r.CantT, "Cantidad entregada": r.CantE, "Cantidad pendiente": r.CantP, "Cantidad cancelada": r.CantC,
-            "Días de Retraso": r.retraso, "Estado de despacho": r.EstDes, "Estado de retiro": r.EstRet,
+            "Días de Retraso": r.retraso, "Estado de despacho": r.EstDes, "Estado de retiro": r.EstRet || "-",
             "Nombre de cliente": r.NombreCliente, "Modalidad de despacho": r.Modalidad, "Canal de venta": homologarCanal(r.Canal || r.canal), "Hora de Escaneo": r.time
         }));
         const ws = XLSX.utils.json_to_sheet(exportData);
@@ -758,15 +930,29 @@
         const barridoData = barridoSnap.val() ? Object.values(barridoSnap.val()) : [];
         const yaEscaneados = new Set(barridoData.map(b => `${b.CodDespacho}-${b.LPN}-${b.SKU}`));
 
+        const resumenFaltantesRealtime = {};
+        masterData.forEach(item => {
+            if (!resumenFaltantesRealtime[item.CodDespacho]) {
+                resumenFaltantesRealtime[item.CodDespacho] = { entregados: 0, pendientes: 0 };
+            }
+            resumenFaltantesRealtime[item.CodDespacho].entregados += Number(item.CantE || 0);
+            resumenFaltantesRealtime[item.CodDespacho].pendientes += Number(item.CantP || 0);
+        });
+
         const faltantes = masterData.filter(m => {
             const est = m.EstDes.toUpperCase();
             const esEstadoCritico = est.includes("PENDIENTE DE RECOJO CLIENTE") || est.includes("PENDIENTE DE DESPACHO CLIENTE") || est.includes("ALMACEN");
             return esEstadoCritico && !yaEscaneados.has(`${m.CodDespacho}-${m.LPN}-${m.SKU}`);
-        }).map(f => ({
-            "Cod. Despacho": f.CodDespacho, "LPN Faltante": f.LPN, "SKU": f.SKU, "Descripción": f.Descripcion,
-            "Cantidad total": f.CantT, "Cantidad entregada": f.CantE, "Cantidad pendiente": f.CantP, "Cantidad cancelada": f.CantC,
-            "Días de Retraso": calcularRetraso(f.Fecha), "Estado de despacho": f.EstadoModificado === "ENTREGA PARCIAL" ? "ENTREGA PARCIAL" : f.EstDes, "Nombre Cliente": f.NombreCliente, "Modalidad": f.Modalidad, "Canal": homologarCanal(f.Canal)
-        }));
+        }).map(f => {
+            const infoDespacho = resumenFaltantesRealtime[f.CodDespacho];
+            const esParcial = infoDespacho && infoDespacho.entregados > 0 && infoDespacho.pendientes > 0;
+
+            return {
+                "Cod. Despacho": f.CodDespacho, "LPN Faltante": f.LPN, "SKU": f.SKU, "Descripción": f.Descripcion, "Ubicación": f.Ubicacion || "-",
+                "Cantidad total": f.CantT, "Cantidad entregada": f.CantE, "Cantidad pendiente": f.CantP, "Cantidad cancelada": f.CantC,
+                "Días de Retraso": calcularRetraso(f.Fecha), "Estado de despacho": esParcial ? "ENTREGA PARCIAL" : f.EstDes, "Nombre Cliente": f.NombreCliente, "Modalidad": f.Modalidad, "Canal": homologarCanal(f.Canal)
+            };
+        });
 
         if(faltantes.length === 0) return alert("No hay faltantes para exportar.");
         const ws = XLSX.utils.json_to_sheet(faltantes);
@@ -774,6 +960,116 @@
         XLSX.utils.book_append_sheet(wb, ws, "Faltantes");
         XLSX.writeFile(wb, `FALTANTES_TIENDA_${TIENDA_ACTUAL}_${new Date().toISOString().split('T')[0]}.xlsx`);
     }
+
+    // =========================================================================
+    // 📊 FUNCIONES DE EXPORTACIÓN MANDATORIAS POR TABLA
+    // =========================================================================
+
+    // 1. Exportar la tabla de Alertas Críticas (Excedentes de Días >= 7)
+    async function exportarExcedentesExcel() {
+        const snap = await db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).once('value');
+        const data = snap.val() ? Object.values(snap.val()) : [];
+
+        const excedentes = data.filter(m => {
+            const d = calcularRetraso(m.Fecha);
+            const est = String(m.EstDes || "").toUpperCase();
+            return d >= 7 && (est.includes("PENDIENTE DE RECOJO CLIENTE") || est.includes("PENDIENTE DE DESPACHO CLIENTE"));
+        }).map(m => ({
+            "Cod. Despacho": m.CodDespacho,
+            "LPN": m.LPN,
+            "SKU": m.SKU,
+            "Descripción": m.Descripcion,
+            "Ubicación": m.Ubicacion || "-",
+            "Cantidad total": m.CantT,
+            "Cantidad entregada": m.CantE,
+            "Cantidad pendiente": m.CantP,
+            "Cantidad cancelada": m.CantC,
+            "Días de Retraso": calcularRetraso(m.Fecha),
+            "Estado": m.EstDes,
+            "Nombre Cliente": m.NombreCliente,
+            "Modalidad": m.Modalidad,
+            "Canal": homologarCanal(m.Canal)
+        }));
+
+        if(excedentes.length === 0) return alert("No hay ítems excedentes para exportar.");
+        const ws = XLSX.utils.json_to_sheet(excedentes);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Excedentes");
+        XLSX.writeFile(wb, `EXCEDENTES_TIENDA_${TIENDA_ACTUAL}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    }
+
+    // 2. Exportar la tabla de Ítems Entregados / Despachados (Escaneados en vivo)
+    async function exportarEntregadosExcel() {
+        const barridoSnap = await db.ref(`tiendas/${TIENDA_ACTUAL}/barridoActual`).once('value');
+        const barridoData = barridoSnap.val() ? Object.values(barridoSnap.val()) : [];
+
+        const entregados = barridoData.filter(v => {
+            const est = v.EstDes.toUpperCase();
+            const esCancelado = est.includes("CANCELADO") || v.CantC > 0;
+
+            let esFiltroExcluido = est.includes("PENDIENTE DE DESPACHO CLIENTE") || est.includes("PENDIENTE DE RECOJO CLIENTE");
+            if (v.CantE > 0 || v.EstadoModificado === "ENTREGA PARCIAL") esFiltroExcluido = false;
+
+            return !esCancelado && !esFiltroExcluido;
+        }).map(v => ({
+            "Cod. Despacho": v.CodDespacho,
+            "LPN": v.LPN,
+            "SKU": v.SKU,
+            "Descripción": v.Descripcion,
+            "Ubicación": v.Ubicacion || "-",
+            "Cantidad total": v.CantT,
+            "Cantidad entregada": v.CantE,
+            "Cantidad pendiente": v.CantP,
+            "Cantidad cancelada": v.CantC,
+            "Días de Retraso": v.retraso,
+            "Estado": (v.CantE > 0 && v.CantP > 0) ? "ENTREGA PARCIAL" : "ENTREGADO",
+            "Nombre Cliente": v.NombreCliente,
+            "Modalidad": v.Modalidad,
+            "Canal": homologarCanal(v.Canal || v.canal),
+            "Hora Escaneo": v.time
+        }));
+
+        if(entregados.length === 0) return alert("No hay ítems entregados escaneados para exportar.");
+        const ws = XLSX.utils.json_to_sheet(entregados);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Entregados");
+        XLSX.writeFile(wb, `ENTREGADOS_TIENDA_${TIENDA_ACTUAL}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    }
+
+    // 3. Exportar la tabla de Ítems Cancelados (Escaneados en vivo)
+    async function exportarCanceladosExcel() {
+        const barridoSnap = await db.ref(`tiendas/${TIENDA_ACTUAL}/barridoActual`).once('value');
+        const barridoData = barridoSnap.val() ? Object.values(barridoSnap.val()) : [];
+
+        const cancelados = barridoData.filter(v => {
+            const est = v.EstDes.toUpperCase();
+            return est.includes("CANCELADO") || v.CantC > 0;
+        }).map(v => ({
+            "Cod. Despacho": v.CodDespacho,
+            "LPN": v.LPN,
+            "SKU": v.SKU,
+            "Descripción": v.Descripcion,
+            "Ubicación": v.Ubicacion || "-",
+            "Cantidad total": v.CantT,
+            "Cantidad entregada": v.CantE,
+            "Cantidad pendiente": v.CantP,
+            "Cantidad cancelada": v.CantC,
+            "Días de Retraso": v.retraso,
+            "Estado": "CANCELADO",
+            "Nombre Cliente": v.NombreCliente,
+            "Modalidad": v.Modalidad,
+            "Canal": homologarCanal(v.Canal || v.canal),
+            "Hora Escaneo": v.time
+        }));
+
+        if(cancelados.length === 0) return alert("No hay ítems cancelados para exportar.");
+        const ws = XLSX.utils.json_to_sheet(cancelados);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Cancelados");
+        XLSX.writeFile(wb, `CANCELADOS_TIENDA_${TIENDA_ACTUAL}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    }
+
+    // =========================================================================
 
     function limpiarBaseDeDatos() {
         if(confirm(`¿Estás seguro? Se borrará TODO únicamente para la Tienda ${TIENDA_ACTUAL}.`)) {
@@ -787,5 +1083,3 @@
         }
     }
 </script>
-</body>
-</html>
