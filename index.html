@@ -283,7 +283,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Base de datos de contraseñas de tiendas homologadas
+    // Base de datos de contraseñas de tiendas
     const TIENDAS_VALIDAS = {
         "404": "tarapoto2026",
         "405": "2tarapoto2026",
@@ -293,7 +293,7 @@
     let TIENDA_ACTUAL = "";
     let html5QrcodeScanner = null;
 
-    // Al cargar la app, verifica si ya estaba logeado previamente
+  
     window.addEventListener('DOMContentLoaded', () => {
         const sesionGuardada = localStorage.getItem('codigoTiendaLogeada');
         if (sesionGuardada && TIENDAS_VALIDAS[sesionGuardada]) {
@@ -357,15 +357,12 @@
         return dias > 0 ? dias : 0;
     }
 
-    /* =========================================================================
-       REGLA DE HOMOLOGACIÓN CORREGIDA SEGÚN TUS ESPECIFICACIONES EXACTAS
-       ========================================================================= */
+
     function homologarCanal(canalRaw) {
     let canalVisual = String(canalRaw || "").trim();
     const canalEvaluado = canalVisual.replace(/\s+/g, '').toUpperCase();
 
     // --- CASO ESPECIAL EXCLUSIVO TIENDA 502 ---
-    // Si la tienda activa es la 502 y viene MARKETPLACE, se transforma en "Seller"
     if (String(TIENDA_ACTUAL) === "502" && canalEvaluado === "MARKETPLACE") {
         return "Seller";
     }
@@ -549,7 +546,7 @@
 
                 if (!canalDetectado) canalDetectado = "ECOMMERCE";
 
-                // Aplicar guardado en base limpia respetando la homologación en renderizado
+        
                 canalDetectado = canalDetectado.trim();
 
                 const descripcion = String(r["Descripción"] || r["Descripcion"] || "").trim();
@@ -965,7 +962,6 @@
     // 📊 FUNCIONES DE EXPORTACIÓN MANDATORIAS POR TABLA
     // =========================================================================
 
-    // 1. Exportar la tabla de Alertas Críticas (Excedentes de Días >= 7)
     async function exportarExcedentesExcel() {
         const snap = await db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).once('value');
         const data = snap.val() ? Object.values(snap.val()) : [];
