@@ -6,22 +6,121 @@
     <title>Logística: Panel Multi-Tienda</title>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script defer src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        .glow-sync { box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); }
-        .text-min { font-size: 10px; line-height: 1.2; font-weight: 800; }
-        .sku-card { background: rgba(255,255,255,0.05); border-left: 3px solid #3b82f6; }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
-        .delay-alert { animation: pulse-red 1.5s infinite; border: 2px solid #ef4444; }
-        @keyframes pulse-red { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
-        .table-container { overflow-x: auto; white-space: nowrap; }
-        .scroll-limit { max-height: 250px; overflow-y: auto; }
-        .semaforo-verde { background-color: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 6px; font-weight: 900; }
-        .semaforo-amarillo { background-color: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 6px; font-weight: 900; }
-        .semaforo-rojo { background-color: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 6px; font-weight: 900; }
+        :root{--glass:rgba(13,20,40,.62);--line:rgba(125,211,252,.14);--cy:#22d3ee;--tx:#e2e8f0;--mu:#8b9bb4}
+        html{background:#05070f}
+        body{font-family:'Space Grotesk',system-ui,sans-serif;color:var(--tx);background:transparent}
+        body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:#0b1120}
+        .glow-sync{box-shadow:none}
+        .text-min{font-size:10px;line-height:1.2;font-weight:800}
+        .custom-scrollbar::-webkit-scrollbar{width:5px;height:6px}
+        .custom-scrollbar::-webkit-scrollbar-thumb{background:#334155;border-radius:10px}
+        .delay-alert{animation:pulse-red 1.5s infinite;border:1px solid #f87171}
+        @keyframes pulse-red{50%{transform:scale(1.02)}}
+        @keyframes rise{from{opacity:0;transform:translateY(8px)}}
+        @keyframes scan{from{top:12%}to{top:86%}}
+        /* superficies */
+        body .bg-white{background:#111827;border:1px solid rgba(148,163,184,.14);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+        body .bg-slate-800{background:rgba(15,23,42,.85)}
+        body .bg-blue-50{background:rgba(34,211,238,.04)}
+        body .border-blue-200{border-color:rgba(34,211,238,.35)}
+        body .border-slate-200,body .border-slate-100,body .border-slate-700,body .border-slate-600{border-color:var(--line)}
+        body .border-red-200{border-color:rgba(251,113,133,.35)}
+        #login-screen,#role-selector{background:rgba(5,7,15,.9);backdrop-filter:blur(8px)}
+        #login-screen>div{background:#111827;box-shadow:0 20px 50px rgba(0,0,0,.45)}
+        #login-screen h1,#role-selector h1{color:#f1f5f9}
+        #view-asistente>div{background:#0f172a;border:1px solid var(--line)}
+        /* texto */
+        body .text-slate-800,body .text-slate-700{color:#e2e8f0}
+        body .text-slate-600{color:#cbd5e1}
+        body .text-slate-500,body .text-slate-400{color:var(--mu)}
+        body .text-red-600,body .text-red-500,.text-rojo{color:#fb7185}
+        body .text-emerald-600,body .text-emerald-700,body .text-emerald-400,.text-verde{color:#34d399}
+        body .text-orange-600{color:#fb923c}
+        body .text-blue-600,body .text-blue-400{color:#38bdf8}
+        body .text-amber-700,.text-amarillo{color:#fbbf24}
+        body .text-violet-700{color:#a78bfa}
+        /* formularios y botones */
+        body input[type=text],body input[type=password]{background:rgba(2,6,23,.7);border-color:rgba(148,163,184,.22);color:#e2e8f0}
+        button{transition:transform .15s,filter .2s}
+        button:hover{filter:brightness(1.14)}
+        body .bg-emerald-600,body .bg-emerald-500{background:#10b981}
+        body .bg-blue-600{background:#3b82f6}
+        body .bg-orange-600,body .bg-orange-500{background:#f97316}
+        body .bg-red-600,body .bg-red-500{background:#ef4444}
+        body button.bg-slate-900,body button.bg-slate-100,body button.bg-red-100{background:rgba(148,163,184,.1);border:1px solid var(--line);color:#e2e8f0}
+        body button.bg-red-100{color:#fb7185}
+        #login-screen button.bg-slate-900,#btnUpload{background:#3b82f6;border:0;color:#fff}
+        body span.bg-red-100{background:rgba(251,113,133,.14)}
+        body span.bg-emerald-100,body .bg-amber-100{background:rgba(52,211,153,.14)}
+        body .bg-amber-100{background:rgba(251,191,36,.14)}
+        body .border-amber-300{border-color:rgba(251,191,36,.45)}
+        #progress-bar{background:#3b82f6}
+        /* KPIs */
+        .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:24px}
+        .kpi{background:rgba(15,23,42,.7);border:1px solid var(--line);border-top:2px solid var(--c);border-radius:16px;padding:12px 16px;display:flex;flex-direction:column;gap:2px}
+        .kpi span{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--mu);font-weight:700}
+        .kpi b{font-size:26px;font-weight:700;color:var(--c)}
+        /* tablas */
+        .table-container{overflow-x:auto;white-space:nowrap;border:1px solid var(--line)!important;border-radius:16px!important;background:rgba(3,7,18,.55)}
+        .scroll-limit{max-height:260px;overflow-y:auto}
+        table{border-collapse:separate;border-spacing:0}
+        body thead[class]{background:#0a1124;color:#7dd3fc;box-shadow:none}
+        th{font-size:10px;letter-spacing:.08em;font-weight:700}
+        td{padding:10px 12px;border-bottom:1px solid rgba(148,163,184,.08);font-size:11px}
+        tbody{font-style:normal!important}
+        tbody tr:hover td{background:rgba(34,211,238,.06)}
+        table:has(#panel-excedentes-body) th{border-bottom:2px solid #fb7185}
+        table:has(#panel-entregados-body) th{border-bottom:2px solid #34d399}
+        table:has(#panel-cancelados-body) th{border-bottom:2px solid #f43f5e}
+        table:has(#admin-table-body) th{border-bottom:2px solid #a78bfa}
+        table:has(#audit-table-body) th{border-bottom:2px solid #fb923c}
+        .b{font-weight:700}.c{text-align:center;font-weight:700}.mute{color:var(--mu)}.ok{color:#34d399}.warn{color:#fb923c}.bad{color:#fb7185}
+        .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:800}.sku{color:#38bdf8;font-weight:700}.ub{color:#a78bfa;font-weight:700}
+        .trunc{max-width:150px;overflow:hidden;text-overflow:ellipsis}
+        .semaforo-verde,.semaforo-amarillo,.semaforo-rojo{padding:2px 9px;border-radius:999px;font-weight:800;font-size:10px;border:1px solid}
+        .semaforo-verde{background:rgba(52,211,153,.12);color:#34d399;border-color:rgba(52,211,153,.4)}
+        .semaforo-amarillo{background:rgba(251,191,36,.12);color:#fbbf24;border-color:rgba(251,191,36,.4)}
+        .semaforo-rojo{background:rgba(251,113,133,.14);color:#fb7185;border-color:rgba(251,113,133,.45)}
+        .pill{display:inline-block;margin-top:3px;padding:1px 8px;border-radius:999px;font-size:9px;font-weight:800;border:1px solid}
+        .pill-amber{background:rgba(251,191,36,.14);color:#fbbf24;border-color:rgba(251,191,36,.45)}
+        .pill-green{background:rgba(52,211,153,.14);color:#34d399;border-color:rgba(52,211,153,.45)}
+        .pill-red{background:rgba(251,113,133,.14);color:#fb7185;border-color:rgba(251,113,133,.45)}
+        .pill-slate{background:rgba(148,163,184,.14);color:#cbd5e1;border-color:rgba(148,163,184,.4)}
+        /* asistente */
+        .sku-card{background:rgba(255,255,255,.04);border-left:3px solid #22d3ee}
+        #qr-reader{position:relative;border:1px solid rgba(148,163,184,.25)!important}
+        #toasts{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:100;display:flex;flex-direction:column;gap:8px;width:min(92vw,380px)}
+        .toast{padding:12px 16px;border-radius:14px;background:rgba(10,16,32,.96);border:1px solid rgba(52,211,153,.5);font-weight:700;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.5);animation:rise .25s ease}
+        .toast.warn{border-color:rgba(251,191,36,.6)}
+        .sku-card{cursor:pointer}
+        .sku-card:active{background:rgba(255,255,255,.08)}
+        .sku-desc{font-size:12px;font-weight:600;color:#e2e8f0;line-height:1.3;margin:2px 0 4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+        .sku-cli{font-size:10px;color:var(--mu);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .qty{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+        .qty>div{background:rgba(2,6,23,.5);border-radius:8px;padding:4px 2px;text-align:center}
+        .qty i{display:block;font-style:normal;font-size:8px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);font-weight:700}
+        .qty b{font-size:14px}.qty-lg{margin-bottom:8px}.qty-lg b{font-size:20px}
+        .sku-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+        .sku-meta span{font-size:9px;font-weight:700;background:rgba(148,163,184,.12);padding:2px 8px;border-radius:999px;color:#cbd5e1}
+        .ver-mas{font-size:10px;font-weight:700;color:#38bdf8}
+        #detalle-modal{position:fixed;inset:0;z-index:70;background:rgba(2,6,23,.72);display:flex;align-items:flex-end;justify-content:center}
+        #detalle-modal.hidden{display:none}
+        .sheet{width:100%;max-width:480px;max-height:88vh;overflow-y:auto;background:#111827;border:1px solid var(--line);border-radius:20px 20px 0 0;padding:16px 18px 24px;animation:rise .25s ease}
+        @media(min-width:640px){#detalle-modal{align-items:center}.sheet{border-radius:20px}}
+        .sheet-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+        .sheet-head h3{font-size:20px;font-weight:700;color:#38bdf8}
+        .sheet-sub{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--mu);font-weight:700}
+        .sheet-head button{background:rgba(148,163,184,.12);border-radius:10px;width:34px;height:34px;color:#e2e8f0;font-weight:700}
+        .dm-desc{font-size:14px;font-weight:600;line-height:1.4;margin-bottom:12px}
+        .dm-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid rgba(148,163,184,.1);font-size:12px}
+        .dm-row>span:first-child{color:var(--mu);font-weight:600}.dm-row b{text-align:right;word-break:break-word}
+        @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
     </style>
 </head>
 <body class="bg-slate-50 font-sans">
@@ -72,7 +171,13 @@
                     <button onclick="volverAlMenu()" class="bg-slate-100 px-4 py-2 rounded-xl text-xs font-bold">CAMBIAR ROL</button>
                 </div>
             </div>
-
+            <div class="kpis">
+                <div class="kpi" style="--c:#22d3ee"><span>Maestro</span><b id="kpi-master">0</b></div>
+                <div class="kpi" style="--c:#a78bfa"><span>Escaneados</span><b id="kpi-scan">0</b></div>
+                <div class="kpi" style="--c:#34d399"><span>Entregados</span><b id="kpi-ent">0</b></div>
+                <div class="kpi" style="--c:#fb7185"><span>Cancelados</span><b id="kpi-can">0</b></div>
+                <div class="kpi" style="--c:#fb923c"><span>Críticos</span><b id="kpi-crit">0</b></div>
+            </div>
             <div class="bg-blue-50 border-2 border-dashed border-blue-200 p-8 rounded-3xl text-center mb-8">
                 <input type="file" id="excelFile" class="mb-6 block w-full text-sm text-slate-500 file:mr-4 file:py-3 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-blue-600 file:text-white cursor-pointer">
                 <button id="btnUpload" onclick="uploadLargeFile()" class="bg-slate-900 text-white px-10 py-4 rounded-2xl font-black shadow-lg hover:bg-black transition w-full md:w-auto">SINCRONIZAR REPORTE MAESTRO</button>
@@ -83,7 +188,7 @@
             </div>
 
             <div class="flex items-center justify-between mb-2">
-                <h3 class="font-black text-red-600 text-[10px] tracking-widest uppercase">⚠️ Excedentes de Días ($\ge$ 7 días retraso - Pendientes de Cliente)</h3>
+                <h3 class="font-black text-red-600 text-[10px] tracking-widest uppercase">⚠️ Excedentes de Días (≥ 7 días retraso - Pendientes de Cliente)</h3>
                 <div class="flex items-center gap-2">
                     <button onclick="exportarExcedentesExcel()" class="bg-red-600 hover:bg-red-700 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-sm transition active:scale-95 uppercase tracking-wider">📊 EXPORTAR EXCEDENTES</button>
                     <span id="count-excedentes" class="bg-red-100 text-red-600 text-[9px] font-black px-2 py-0.5 rounded-full">0 ÍTEMS CRÍTICOS</span>
@@ -261,13 +366,23 @@
                 <div class="bg-slate-800 p-4 rounded-[2rem] border-t-4 border-slate-600 text-white">
                     <p id="res-lpn" class="text-xl font-black text-center mb-2 italic text-blue-400 uppercase tracking-tight"></p>
                     <div id="res-retraso-banner" class="mb-4"></div>
-                    <div id="sku-container" class="space-y-2 mb-4 max-h-52 overflow-y-auto pr-1 custom-scrollbar"></div>
+                    <div id="sku-container" class="space-y-2 mb-4 max-h-[45vh] overflow-y-auto pr-1 custom-scrollbar"></div>
                     <button onclick="confirmarYEnviar()" class="w-full bg-emerald-600 py-4 rounded-2xl font-black text-lg shadow-xl active:scale-95 transition italic uppercase tracking-tighter text-center">Registrar en Admin</button>
                 </div>
             </div>
         </div>
     </div>
 </main>
+
+<div id="detalle-modal" class="hidden" onclick="if(event.target===this)cerrarDetalle()">
+    <div class="sheet">
+        <div class="sheet-head">
+            <div><p class="sheet-sub" id="dm-sub"></p><h3 id="dm-title"></h3></div>
+            <button onclick="cerrarDetalle()" aria-label="Cerrar">✕</button>
+        </div>
+        <div id="dm-body"></div>
+    </div>
+</div>
 
 <script>
     // Configuración Base de Firebase
@@ -293,7 +408,7 @@
     let TIENDA_ACTUAL = "";
     let html5QrcodeScanner = null;
 
-  
+
     window.addEventListener('DOMContentLoaded', () => {
         const sesionGuardada = localStorage.getItem('codigoTiendaLogeada');
         if (sesionGuardada && TIENDAS_VALIDAS[sesionGuardada]) {
@@ -381,111 +496,104 @@
     return canalVisual === "" ? "-" : canalVisual;
 }
 
+    async function iniciarScanner() {
+        try {
+            if (!html5QrcodeScanner) html5QrcodeScanner = new Html5Qrcode("qr-reader", { experimentalFeatures: { useBarCodeDetectorIfSupported: true } });
+            if (html5QrcodeScanner.getState() === 2) return;
+            await html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 15, qrbox: 220 }, onScanSuccess);
+        } catch (err) { console.error(err); toast('⚠️ No se pudo iniciar la cámara', 'warn'); }
+    }
+
     function initApp(role) {
         document.getElementById('role-selector').classList.add('hidden');
         document.getElementById('main-content').classList.remove('hidden');
+        esAdmin = role === 'admin';
+        iniciarMasterCache();
+        escucharBarrido();
 
-        db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).off();
-        db.ref(`tiendas/${TIENDA_ACTUAL}/barridoActual`).off();
-
-        if(role === 'admin') {
+        if (esAdmin) {
             document.getElementById('badge-tienda-admin').innerText = `TIENDA: ${TIENDA_ACTUAL}`;
             document.getElementById('view-admin').classList.remove('hidden');
-            escucharMaestroParaExcedentes();
-        }
-        else {
+            garantizarEstructuraTablas();
+            programarRender();
+        } else {
             document.getElementById('view-asistente').classList.remove('hidden');
-            iniciarMonitorSincronizacion();
-            html5QrcodeScanner = new Html5Qrcode("qr-reader");
-            html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 20, qrbox: 220 }, onScanSuccess);
-
-            const mInput = document.getElementById('manual-input');
-            mInput.onkeypress = (e) => { if (e.key === 'Enter') buscarManual(); };
+            actualizarSync();
+            iniciarScanner();
+            document.getElementById('manual-input').onkeypress = (e) => { if (e.key === 'Enter') buscarManual(); };
         }
-        escucharBarrido();
     }
 
-    function iniciarMonitorSincronizacion() {
-        db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).on('value', (snap) => {
-            const data = snap.val();
-            if (data) {
-                document.getElementById('sync-dot').className = "h-3 w-3 rounded-full bg-emerald-500 glow-sync";
-                document.getElementById('sync-status-text').innerText = `ONLINE T-${TIENDA_ACTUAL}`;
-                document.getElementById('sync-count').innerText = `${Object.keys(data).length} REG`;
-            }
+    // ===== CACHÉ LOCAL DEL MAESTRO (una sola descarga, índices en memoria) =====
+    const el = id => document.getElementById(id);
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const pill = (c, t) => `<span class="pill pill-${c}">${t}</span>`;
+    const llaveReg = m => `${m.CodDespacho}-${m.LPN}-${m.SKU}`;
+    const MAX_FILAS = 300;
+    let recs = [], byLPN = new Map(), byDesp = new Map(), keyMap = new Map(), resumen = new Map();
+    let masterLoaded = false, masterRef = null, barridoRef = null, rafId = 0, esAdmin = false, enLinea = true;
+    const barrido = new Map(), barridoKeys = new Set();
+
+    function toast(msg, tipo) {
+        let c = el('toasts');
+        if (!c) { c = document.createElement('div'); c.id = 'toasts'; document.body.appendChild(c); }
+        const t = document.createElement('div');
+        t.className = 'toast ' + (tipo || (String(msg).startsWith('⚠') ? 'warn' : 'ok'));
+        t.textContent = msg;
+        c.appendChild(t);
+        setTimeout(() => t.remove(), 3500);
+    }
+    window.alert = m => toast(m);
+
+    function onMaster(snap) {
+        const val = snap.val();
+        const add = (map, k, r) => { const a = map.get(k); a ? a.push(r) : map.set(k, [r]); };
+        byLPN = new Map(); byDesp = new Map(); keyMap = new Map(); resumen = new Map();
+        recs = (val ? Object.values(val).filter(Boolean) : []).map(m => {
+            const r = { m, est: String(m.EstDes || "").toUpperCase(), d: calcularRetraso(m.Fecha) };
+            add(byLPN, String(m.LPN || "").toUpperCase(), r);
+            add(byDesp, String(m.CodDespacho || "").toUpperCase(), r);
+            keyMap.set(llaveReg(m), m);
+            const s = resumen.get(m.CodDespacho) || { e: 0, p: 0 };
+            s.e += Number(m.CantE || 0); s.p += Number(m.CantP || 0);
+            resumen.set(m.CodDespacho, s);
+            return r;
         });
+        masterLoaded = true;
+        actualizarSync();
+        programarRender();
+    }
+    function iniciarMasterCache() {
+        if (masterRef) return;
+        masterRef = db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`);
+        masterRef.on('value', onMaster);
+    }
+    function detenerMaster() { if (masterRef) { masterRef.off('value', onMaster); masterRef = null; } }
+
+    function programarRender() {
+        if (!esAdmin || rafId) return;
+        rafId = requestAnimationFrame(() => { rafId = 0; renderAdmin(); });
     }
 
-    function escucharMaestroParaExcedentes() {
-        db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).on('value', (snap) => {
-            const data = snap.val();
-            const panelExcedentes = document.getElementById('panel-excedentes-body');
-            const counterExcedentes = document.getElementById('count-excedentes');
+    function actualizarSync() {
+        const ok = enLinea && masterLoaded && recs.length > 0;
+        el('sync-dot').className = 'h-3 w-3 rounded-full ' + (ok ? 'bg-emerald-500 glow-sync' : enLinea ? 'bg-amber-400 animate-pulse' : 'bg-red-500');
+        el('sync-status-text').innerText = !enLinea ? 'SIN CONEXIÓN' : ok ? `ONLINE T-${TIENDA_ACTUAL}` : masterLoaded ? `SIN DATOS T-${TIENDA_ACTUAL}` : 'Verificando...';
+        el('sync-count').innerText = `${recs.length} REG`;
+    }
+    db.ref('.info/connected').on('value', s => { enLinea = !!s.val(); actualizarSync(); });
 
-            panelExcedentes.innerHTML = "";
-            if (!data) {
-                panelExcedentes.innerHTML = `<tr><td colspan="14" class="p-4 text-center text-slate-400 font-bold">Cargue un archivo maestro para esta tienda...</td></tr>`;
-                counterExcedentes.innerText = "0 ÍTEMS CRÍTICOS";
-                return;
-            }
+    const fila = (m, d, estHtml, ubic, mostrarCP, hora) =>
+        `<tr><td class="b">${esc(m.CodDespacho)}</td><td class="mono">${esc(m.LPN)}</td><td class="sku">${esc(m.SKU)}</td>` +
+        `<td class="trunc" title="${esc(m.Descripcion)}">${esc(m.Descripcion)}</td><td class="ub">${esc(ubic || "-")}</td>` +
+        `<td class="c">${esc(m.CantT)}</td><td class="c ok">${esc(m.CantE)}</td><td class="c warn">${mostrarCP ? esc(m.CantP) : '-'}</td><td class="c bad">${esc(m.CantC)}</td>` +
+        `<td class="c"><span class="${getSemaforoClass(d)}">${d}d</span></td><td class="est">${estHtml}</td>` +
+        `<td class="trunc">${esc(m.NombreCliente)}</td><td>${esc(m.Modalidad)}</td><td class="b">${esc(homologarCanal(m.Canal || m.canal))}</td>` +
+        (hora !== undefined ? `<td class="c mute">${esc(hora)}</td>` : '') + `</tr>`;
 
-            const itemsMaestros = Object.values(data);
-            let totalExcedentes = 0;
-
-            const resumenDespachosRealtime = {};
-            itemsMaestros.forEach(item => {
-                if (!resumenDespachosRealtime[item.CodDespacho]) {
-                    resumenDespachosRealtime[item.CodDespacho] = { entregados: 0, pendientes: 0 };
-                }
-                resumenDespachosRealtime[item.CodDespacho].entregados += Number(item.CantE || 0);
-                resumenDespachosRealtime[item.CodDespacho].pendientes += Number(item.CantP || 0);
-            });
-
-            itemsMaestros.forEach(m => {
-                const d = calcularRetraso(m.Fecha);
-                const estadoMayuscula = String(m.EstDes || "").toUpperCase();
-                const cumpleEstadoCritico = estadoMayuscula.includes("PENDIENTE DE RECOJO CLIENTE") ||
-                                           estadoMayuscula.includes("PENDIENTE DE DESPACHO CLIENTE");
-
-                if (d >= 7 && cumpleEstadoCritico) {
-                    totalExcedentes++;
-                    const mostrarCP = !(m.SoloUnSku && m.CantE === 0);
-                    let txtEstado = m.EstDes;
-
-                    const infoDespacho = resumenDespachosRealtime[m.CodDespacho];
-                    if (infoDespacho && infoDespacho.entregados > 0 && infoDespacho.pendientes > 0) {
-                        txtEstado = `<span class="text-[9px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-black border border-amber-300 shadow-sm">ENTREGA PARCIAL</span>`;
-                    }
-
-                    panelExcedentes.insertAdjacentHTML('beforeend', `
-                        <tr class="hover:bg-orange-100/50">
-                            <td class="p-3 border-b font-bold text-slate-700">${m.CodDespacho}</td>
-                            <td class="p-3 border-b font-mono font-black">${m.LPN}</td>
-                            <td class="p-3 border-b text-blue-600 font-bold">${m.SKU}</td>
-                            <td class="p-3 border-b truncate max-w-[150px]">${m.Descripcion}</td>
-                            <td class="p-3 border-b font-bold text-violet-700">${m.Ubicacion || "-"}</td>
-                            <td class="p-3 border-b text-center font-bold">${m.CantT}</td>
-                            <td class="p-3 border-b text-center font-bold text-emerald-600">${m.CantE}</td>
-                            <td class="p-3 border-b text-center font-black text-orange-600">${mostrarCP ? m.CantP : '-'}</td>
-                            <td class="p-3 border-b text-center font-bold text-red-600">${m.CantC}</td>
-                            <td class="p-3 border-b text-center"><span class="${getSemaforoClass(d)}">${d}d</span></td>
-                            <td class="p-3 border-b font-black text-slate-800">${txtEstado}</td>
-                            <td class="p-3 border-b truncate max-w-[120px]">${m.NombreCliente}</td>
-                            <td class="p-3 border-b">${m.Modalidad}</td>
-                            <td class="p-3 border-b font-bold text-slate-700">${homologarCanal(m.Canal)}</td>
-                        </tr>`);
-                }
-            });
-
-            if (totalExcedentes === 0) {
-                panelExcedentes.innerHTML = `<tr><td colspan="14" class="p-4 text-center text-emerald-600 font-black tracking-wide bg-emerald-50/50">🎉 EXCELENTE: No hay alertas críticas retenidas en esta tienda.</td></tr>`;
-                counterExcedentes.className = "bg-emerald-100 text-emerald-700 text-[9px] font-black px-2 py-0.5 rounded-full";
-                counterExcedentes.innerText = "0 ALERTAS";
-            } else {
-                counterExcedentes.className = "bg-red-100 text-red-600 text-[9px] font-black px-2 py-0.5 rounded-full animate-pulse";
-                counterExcedentes.innerText = `${totalExcedentes} ÍTEMS CRÍTICOS`;
-            }
-        });
+    function llenar(id, rows, total, cols) {
+        el(id).innerHTML = rows.join('') + (total > rows.length
+            ? `<tr><td colspan="${cols}" class="p-3 text-center mute">Mostrando ${rows.length} de ${total} · usa EXPORTAR para ver todo</td></tr>` : '');
     }
 
     async function uploadLargeFile() {
@@ -512,6 +620,7 @@
 
         const reader = new FileReader();
         reader.onload = async (e) => {
+            await new Promise(r => setTimeout(r, 50)); // deja pintar la barra antes del parseo
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
             const rawData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
@@ -546,7 +655,7 @@
 
                 if (!canalDetectado) canalDetectado = "ECOMMERCE";
 
-        
+
                 canalDetectado = canalDetectado.trim();
 
                 const descripcion = String(r["Descripción"] || r["Descripcion"] || "").trim();
@@ -617,27 +726,36 @@
                 return { ...r, SoloUnSku: lpnCounts[r.LPN] === 1, EstadoModificado: estadoModificado };
             });
 
-            await db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).set(null);
-
-            const chunkSize = 500;
-            for (let i = 0; i < finalData.length; i += chunkSize) {
-                const chunk = finalData.slice(i, i + chunkSize);
-                await db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).update(chunk.reduce((a, c, idx) => { a[i+idx] = c; return a; }, {}));
-                bar.style.width = Math.floor((i / finalData.length) * 100) + "%";
+            detenerMaster(); // evita re-render del listener en cada bloque subido
+            try {
+                const ref = db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`);
+                await ref.set(null);
+                const chunkSize = 1000, trozos = [];
+                for (let i = 0; i < finalData.length; i += chunkSize) trozos.push(i);
+                let hechos = 0;
+                for (let g = 0; g < trozos.length; g += 4) {
+                    await Promise.all(trozos.slice(g, g + 4).map(i => {
+                        const upd = {};
+                        finalData.slice(i, i + chunkSize).forEach((c, idx) => { upd[i + idx] = c; });
+                        return ref.update(upd).then(() => { hechos++; bar.style.width = Math.floor(hechos / trozos.length * 100) + "%"; });
+                    }));
+                }
+                document.getElementById('admin-status').innerText = `✅ Sincronizado correctamente para Tienda ${TIENDA_ACTUAL}. Total únicos: ${finalData.length}`;
+            } catch (err) {
+                console.error(err);
+                alert("⚠️ Error al sincronizar: " + err.message);
+            } finally {
+                ui.classList.add('hidden');
+                iniciarMasterCache();
             }
-
-            document.getElementById('admin-status').innerText = `✅ Sincronizado correctamente para Tienda ${TIENDA_ACTUAL}. Total únicos: ${finalData.length}`;
-            ui.classList.add('hidden');
         };
         reader.readAsArrayBuffer(file);
     }
 
     async function compararFaltantes() {
-        const masterSnap = await db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).once('value');
-        const barridoSnap = await db.ref(`tiendas/${TIENDA_ACTUAL}/barridoActual`).once('value');
-        const masterData = masterSnap.val() ? Object.values(masterSnap.val()) : [];
-        const barridoData = barridoSnap.val() ? Object.values(barridoSnap.val()) : [];
-        const yaEscaneados = new Set(barridoData.map(b => `${b.CodDespacho}-${b.LPN}-${b.SKU}`));
+        const masterData = recs.map(r => r.m);
+        const barridoData = Array.from(barrido.values());
+        const yaEscaneados = barridoKeys;
 
         const faltantes = masterData.filter(m => {
             const est = m.EstDes.toUpperCase();
@@ -712,16 +830,13 @@
         if (window.lastInput === inputVal) return;
         window.lastInput = inputVal;
 
-        const snap = await db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).once('value');
-        const data = snap.val() || [];
-        window.matches = Object.values(data).filter(i =>
-            i.LPN.toUpperCase() === inputVal.toUpperCase() ||
-            i.CodDespacho.toUpperCase() === inputVal.toUpperCase()
-        );
+        if (!masterLoaded) { toast('⚠️ Base sincronizando, intenta de nuevo', 'warn'); window.lastInput = null; return; }
+        const U = inputVal.toUpperCase();
+        window.matches = Array.from(new Set([...(byLPN.get(U) || []), ...(byDesp.get(U) || [])]), r => r.m);
 
         const container = document.getElementById('sku-container');
         const banner = document.getElementById('res-retraso-banner');
-        container.innerHTML = ""; banner.innerHTML = "";
+        container.innerHTML = ""; banner.innerHTML = ""; cerrarDetalle();
         document.getElementById('scan-result').classList.remove('hidden');
         document.getElementById('res-lpn').innerText = inputVal;
 
@@ -730,7 +845,7 @@
         } else {
             let maxDelay = 0;
             let hayAlertaCritica = false;
-            window.matches.forEach(m => {
+            window.matches.forEach((m, i) => {
                 const d = calcularRetraso(m.Fecha);
                 const est = m.EstDes.toUpperCase();
                 let critico = (est.includes("RECOJO CLIENTE") && d > 7) || (est.includes("DESPACHO CLIENTE") && d > 2);
@@ -748,18 +863,28 @@
                     colorBorder = 'border-emerald-600';
                 }
 
+                const ya = barridoKeys.has(llaveReg(m));
+                const cp = !(m.SoloUnSku && m.CantE === 0) ? m.CantP : '-';
                 container.insertAdjacentHTML('beforeend', `
-                    <div class="sku-card p-2 rounded-xl mb-1 border-l-4 ${colorBorder}">
+                    <div class="sku-card p-3 rounded-xl mb-1 border-l-4 ${colorBorder}" onclick="abrirDetalle(${i})">
                         <div class="flex justify-between items-center mb-1">
-                            <span class="text-blue-400 font-black text-[10px]">SKU: ${m.SKU}</span>
-                            <div class="flex gap-2">
-                                <span class="text-[9px] text-slate-400 font-bold uppercase">Ubic: ${m.Ubicacion || "-"}</span>
-                                <span class="text-[9px] font-black ${getSemaforoClass(d).replace('semaforo-', 'text-')}">${d}d retraso</span>
-                            </div>
+                            <span class="sku font-black text-[11px]">SKU ${esc(m.SKU)}</span>
+                            <span class="${getSemaforoClass(d)}">${d}d</span>
                         </div>
-                        <div class="grid grid-cols-2 gap-1">
-                            <div><p class="text-[7px] text-slate-500 uppercase font-bold text-center">Despacho</p><p class="text-[9px] font-bold text-center text-min">${renderEst}</p></div>
-                            <div><p class="text-[7px] text-slate-500 uppercase font-bold text-center">Retiro</p><p class="text-[9px] font-bold text-orange-200 text-center text-min">${m.EstRet || "-"}</p></div>
+                        <p class="sku-desc">${esc(m.Descripcion)}</p>
+                        <p class="sku-cli">👤 ${esc(m.NombreCliente || '-')}</p>
+                        <div class="qty">
+                            <div><i>Total</i><b>${esc(m.CantT)}</b></div>
+                            <div><i>Entreg.</i><b class="ok">${esc(m.CantE)}</b></div>
+                            <div><i>Pend.</i><b class="warn">${esc(cp)}</b></div>
+                            <div><i>Canc.</i><b class="bad">${esc(m.CantC)}</b></div>
+                        </div>
+                        <div class="sku-meta">
+                            <span>📍 ${esc(m.Ubicacion || '-')}</span><span>${esc(homologarCanal(m.Canal))}</span><span>${esc(m.Modalidad || '-')}</span>
+                        </div>
+                        <div class="flex justify-between items-center mt-2">
+                            <span class="text-min">${esc(renderEst)} ${ya ? pill('green', 'YA REGISTRADO') : ''}</span>
+                            <span class="ver-mas">Ver detalle ›</span>
                         </div>
                     </div>`);
             });
@@ -795,20 +920,58 @@
         });
     }
 
+    function fmtFecha(f) {
+        if (!f) return '-';
+        if (typeof f === 'number') return new Date((f - 25569) * 86400000).toLocaleDateString('es-PE', { timeZone: 'UTC' });
+        return String(f);
+    }
+
+    function abrirDetalle(i) {
+        const m = (window.matches || [])[i];
+        if (!m) return;
+        const d = calcularRetraso(m.Fecha);
+        const est = String(m.EstDes || '').toUpperCase();
+        let estado = m.EstDes;
+        if (m.EstadoModificado === "ENTREGA PARCIAL") estado = "ENTREGA PARCIAL";
+        else if (est.includes("ENTREGADO") || (m.CantE > 0 && m.CantP === 0)) estado = "ENTREGADO REVISAR";
+        const cp = !(m.SoloUnSku && m.CantE === 0) ? m.CantP : '-';
+        const ya = barridoKeys.has(llaveReg(m));
+        const row = (k, v) => `<div class="dm-row"><span>${k}</span><b>${esc(v || '-')}</b></div>`;
+        el('dm-sub').textContent = `Ítem ${i + 1} de ${window.matches.length}`;
+        el('dm-title').textContent = m.SKU;
+        el('dm-body').innerHTML = `
+            <p class="dm-desc">${esc(m.Descripcion)}</p>
+            <div class="qty qty-lg">
+                <div><i>Total</i><b>${esc(m.CantT)}</b></div>
+                <div><i>Entreg.</i><b class="ok">${esc(m.CantE)}</b></div>
+                <div><i>Pend.</i><b class="warn">${esc(cp)}</b></div>
+                <div><i>Canc.</i><b class="bad">${esc(m.CantC)}</b></div>
+            </div>
+            <div class="dm-row"><span>Retraso</span><span class="${getSemaforoClass(d)}">${d} días</span></div>
+            <div class="dm-row"><span>Estado despacho</span><b>${esc(estado)} ${ya ? pill('green', 'YA REGISTRADO') : ''}</b></div>
+            ${row('Estado retiro', m.EstRet)}
+            ${row('Cod. despacho', m.CodDespacho)}
+            ${row('LPN', m.LPN)}
+            ${row('Ubicación', m.Ubicacion)}
+            ${row('Cliente', m.NombreCliente)}
+            ${row('Modalidad', m.Modalidad)}
+            ${row('Canal', homologarCanal(m.Canal))}
+            ${row('Fecha de entrega', fmtFecha(m.Fecha))}`;
+        el('detalle-modal').classList.remove('hidden');
+    }
+    function cerrarDetalle() { const m = el('detalle-modal'); if (m) m.classList.add('hidden'); }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarDetalle(); });
+
     async function confirmarYEnviar() {
         if(!window.matches || window.matches.length === 0) return;
-        const barridoSnap = await db.ref(`tiendas/${TIENDA_ACTUAL}/barridoActual`).once('value');
-        const barridoData = barridoSnap.val() ? Object.values(barridoSnap.val()) : [];
-        const registrosExistentes = new Set(barridoData.map(b => `${b.CodDespacho}-${b.LPN}-${b.SKU}`));
         let nuevosRegistros = 0;
-
+        const hora = new Date().toLocaleTimeString();
         window.matches.forEach(m => {
-            const llaveUnica = `${m.CodDespacho}-${m.LPN}-${m.SKU}`;
-            if (!registrosExistentes.has(llaveUnica)) {
-                const d = calcularRetraso(m.Fecha);
-                db.ref(`tiendas/${TIENDA_ACTUAL}/barridoActual`).push({ ...m, retraso: d, time: new Date().toLocaleTimeString() });
-                nuevosRegistros++;
-            }
+            const llaveUnica = llaveReg(m);
+            if (barridoKeys.has(llaveUnica)) return;
+            barridoKeys.add(llaveUnica);
+            db.ref(`tiendas/${TIENDA_ACTUAL}/barridoActual`).push({ ...m, retraso: calcularRetraso(m.Fecha), time: hora });
+            nuevosRegistros++;
         });
         if (nuevosRegistros > 0) alert(`✅ Registrado: ${nuevosRegistros} ítem(s) en Tienda ${TIENDA_ACTUAL}.`);
         else alert(`⚠️ Omitido: Ya registrados en este LPN.`);
@@ -816,98 +979,88 @@
         window.lastInput = null;
     }
 
+    // ===== BARRIDO: caché local + render por lotes =====
     function escucharBarrido() {
-        garantizarEstructuraTablas();
-        document.getElementById('panel-cancelados-body').innerHTML = "";
-        document.getElementById('panel-entregados-body').innerHTML = "";
-        document.getElementById('admin-table-body').innerHTML = "";
+        if (barridoRef) { programarRender(); return; }
+        barridoRef = db.ref(`tiendas/${TIENDA_ACTUAL}/barridoActual`);
+        barridoRef.on('child_added', s => { const v = s.val(); barrido.set(s.key, v); barridoKeys.add(llaveReg(v)); programarRender(); });
+        barridoRef.on('child_removed', s => { const v = barrido.get(s.key); barrido.delete(s.key); if (v) barridoKeys.delete(llaveReg(v)); programarRender(); });
+    }
 
-        const tiendaSincronizada = TIENDA_ACTUAL;
+    function renderAdmin() {
+        renderExcedentes();
+        renderBarrido();
+        el('kpi-master').innerText = recs.length;
+        el('kpi-scan').innerText = barrido.size;
+    }
 
-        db.ref(`tiendas/${tiendaSincronizada}/barridoActual`).on('child_added', async (snap) => {
-            const v = snap.val();
-            const mostrarCP = !(v.SoloUnSku && v.CantE === 0);
-            const est = v.EstDes.toUpperCase();
-
-            let txtEstado = v.EstDes;
-            let subBadge = "";
-            let esFiltroExcluido = false;
-            let ocultarEnEscaneoActual = false;
-
-            const masterSnap = await db.ref(`tiendas/${tiendaSincronizada}/masterDAD`).once('value');
-            const masterData = masterSnap.val() ? Object.values(masterSnap.val()) : [];
-
-            const itemMaestroOcurrencia = masterData.find(m =>
-                m.CodDespacho === v.CodDespacho && m.LPN === v.LPN && m.SKU === v.SKU
-            );
-
-            const ubicacionReal = itemMaestroOcurrencia ? (itemMaestroOcurrencia.Ubicacion || "-") : (v.Ubicacion || "-");
-
-            const lasFilasDelDespacho = masterData.filter(m => m.CodDespacho === v.CodDespacho);
-            const pendientesGlobales = lasFilasDelDespacho.reduce((sum, item) => sum + Number(item.CantP || 0), 0);
-            const entregadosGlobales = lasFilasDelDespacho.reduce((sum, item) => sum + Number(item.CantE || 0), 0);
-
-            if (est.includes("CANCELADO") || v.CantC > 0) {
-                txtEstado = v.EstDes;
-                subBadge = '<br><span class="text-[8px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-black border border-red-300 shadow-sm">CANCELADO</span>';
+    function renderExcedentes() {
+        const counter = el('count-excedentes');
+        const rows = []; let total = 0;
+        for (const r of recs) {
+            if (r.d >= 7 && (r.est.includes("PENDIENTE DE RECOJO CLIENTE") || r.est.includes("PENDIENTE DE DESPACHO CLIENTE"))) {
+                total++;
+                if (rows.length < MAX_FILAS) {
+                    const m = r.m, s = resumen.get(m.CodDespacho);
+                    const est = (s && s.e > 0 && s.p > 0) ? pill('amber', 'ENTREGA PARCIAL') : esc(m.EstDes);
+                    rows.push(fila(m, r.d, est, m.Ubicacion, !(m.SoloUnSku && m.CantE === 0)));
+                }
             }
+        }
+        el('kpi-crit').innerText = total;
+        if (!recs.length) {
+            el('panel-excedentes-body').innerHTML = `<tr><td colspan="14" class="p-4 text-center mute">Cargue un archivo maestro para esta tienda...</td></tr>`;
+            counter.className = "bg-red-100 text-red-600 text-[9px] font-black px-2 py-0.5 rounded-full";
+            counter.innerText = "0 ÍTEMS CRÍTICOS";
+        } else if (!total) {
+            el('panel-excedentes-body').innerHTML = `<tr><td colspan="14" class="p-4 text-center ok b">🎉 EXCELENTE: No hay alertas críticas retenidas en esta tienda.</td></tr>`;
+            counter.className = "bg-emerald-100 text-emerald-700 text-[9px] font-black px-2 py-0.5 rounded-full";
+            counter.innerText = "0 ALERTAS";
+        } else {
+            llenar('panel-excedentes-body', rows, total, 14);
+            counter.className = "bg-red-100 text-red-600 text-[9px] font-black px-2 py-0.5 rounded-full animate-pulse";
+            counter.innerText = `${total} ÍTEMS CRÍTICOS`;
+        }
+    }
+
+    function renderBarrido() {
+        const ent = [], can = [], all = [];
+        let nE = 0, nC = 0, nA = 0;
+        for (const v of Array.from(barrido.values()).reverse()) {
+            const est = String(v.EstDes || "").toUpperCase();
+            const s = resumen.get(v.CodDespacho);
+            const parcialG = !!s && s.e > 0 && s.p > 0;
+            const sinPend = Number(v.CantP || 0) === 0;
+            const cancel = est.includes("CANCELADO") || v.CantC > 0;
+            let txt = v.EstDes, badge = "", excl = false, ocultar = false;
+            if (cancel) badge = pill('red', 'CANCELADO');
             else if (est.includes("PENDIENTE DE DESPACHO CLIENTE") || est.includes("PENDIENTE DE RECOJO CLIENTE")) {
-                esFiltroExcluido = true;
-                if (entregadosGlobales > 0 && pendientesGlobales > 0) {
-                    txtEstado = "ENTREGA PARCIAL";
-                    subBadge = '<br><span class="text-[9px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-black border border-amber-300 shadow-sm inline-block mt-0.5">ENTREGA PARCIAL</span>';
-                    if (Number(v.CantP || 0) === 0) ocultarEnEscaneoActual = true;
-                } else {
-                    txtEstado = v.EstDes;
-                    subBadge = '<br><span class="text-[9px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-black border border-slate-300 shadow-sm inline-block mt-0.5">PENDIENTE</span>';
-                }
+                excl = true;
+                if (parcialG) { txt = "ENTREGA PARCIAL"; badge = pill('amber', 'ENTREGA PARCIAL'); ocultar = sinPend; }
+                else badge = pill('slate', 'PENDIENTE');
+            } else if (est.includes("ENTREGADO") || v.CantE > 0 || v.EstadoModificado === "ENTREGA PARCIAL") {
+                if (parcialG) { txt = "ENTREGA PARCIAL"; badge = pill('amber', 'ENTREGA PARCIAL'); excl = true; ocultar = sinPend; }
+                else { txt = "ENTREGADO"; badge = pill('green', 'ENTREGADO REVISAR'); }
             }
-            else if (est.includes("ENTREGADO") || v.CantE > 0 || v.EstadoModificado === "ENTREGA PARCIAL") {
-                if (entregadosGlobales > 0 && pendientesGlobales > 0) {
-                    txtEstado = "ENTREGA PARCIAL";
-                    subBadge = '<br><span class="text-[9px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-black border border-amber-300 shadow-sm inline-block mt-0.5">ENTREGA PARCIAL</span>';
-                    esFiltroExcluido = true;
-                    if (Number(v.CantP || 0) === 0) ocultarEnEscaneoActual = true;
-                } else {
-                    txtEstado = "ENTREGADO";
-                    subBadge = '<br><span class="text-[9px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-black border border-emerald-300 shadow-sm inline-block mt-0.5">ENTREGADO REVISAR</span>';
-                }
-            }
-
-            const row = `
-                <tr class="bg-white hover:bg-slate-50">
-                    <td class="p-3 border-b font-bold text-slate-700">${v.CodDespacho}</td>
-                    <td class="p-3 border-b font-mono font-black">${v.LPN}</td>
-                    <td class="p-3 border-b text-blue-600 font-bold">${v.SKU}</td>
-                    <td class="p-3 border-b max-w-[150px] truncate">${v.Descripcion}</td>
-                    <td class="p-3 border-b max-w-[120px] truncate font-bold text-violet-700 bg-violet-50/10">${ubicacionReal}</td>
-                    <td class="p-3 border-b text-center font-bold">${v.CantT}</td>
-                    <td class="p-3 border-b text-center font-bold text-emerald-600">${v.CantE}</td>
-                    <td class="p-3 border-b text-center font-bold text-orange-600">${mostrarCP ? v.CantP : '-'}</td>
-                    <td class="p-3 border-b text-center font-bold text-red-600">${v.CantC}</td>
-                    <td class="p-3 border-b text-center"><span class="${getSemaforoClass(v.retraso)}">${v.retraso}d</span></td>
-                    <td class="p-3 border-b font-black text-slate-800">${txtEstado}${subBadge}</td>
-                    <td class="p-3 border-b max-w-[120px] truncate">${v.NombreCliente}</td>
-                    <td class="p-3 border-b">${v.Modalidad}</td>
-                    <td class="p-3 border-b font-bold text-slate-700">${homologarCanal(v.Canal || v.canal)}</td>
-                    <td class="p-3 border-b text-slate-400 text-center">${v.time}</td>
-                </tr>`;
-
-            if (est.includes("CANCELADO") || v.CantC > 0) {
-                document.getElementById('panel-cancelados-body').insertAdjacentHTML('afterbegin', row);
-            } else if (!esFiltroExcluido) {
-                document.getElementById('panel-entregados-body').insertAdjacentHTML('afterbegin', row);
-            }
-            if (!ocultarEnEscaneoActual) {
-                document.getElementById('admin-table-body').insertAdjacentHTML('afterbegin', row);
-            }
-        });
+            let row = null;
+            const R = () => row || (row = (() => {
+                const mm = keyMap.get(llaveReg(v));
+                return fila(v, v.retraso, esc(txt) + (badge ? "<br>" + badge : ""), mm ? mm.Ubicacion : v.Ubicacion, !(v.SoloUnSku && v.CantE === 0), v.time);
+            })());
+            if (cancel) { nC++; if (can.length < MAX_FILAS) can.push(R()); }
+            else if (!excl) { nE++; if (ent.length < MAX_FILAS) ent.push(R()); }
+            if (!ocultar) { nA++; if (all.length < MAX_FILAS) all.push(R()); }
+        }
+        llenar('panel-cancelados-body', can, nC, 15);
+        llenar('panel-entregados-body', ent, nE, 15);
+        llenar('admin-table-body', all, nA, 15);
+        el('kpi-ent').innerText = nE;
+        el('kpi-can').innerText = nC;
     }
 
     async function exportarBarrido() {
-        const snap = await db.ref(`tiendas/${TIENDA_ACTUAL}/barridoActual`).once('value');
-        const data = snap.val();
-        if (!data) return alert("No hay datos.");
+        const data = Array.from(barrido.values());
+        if (!data.length) return alert("No hay datos.");
         const exportData = Object.values(data).map(r => ({
             "Código de despacho": r.CodDespacho, "LPN": r.LPN, "SKU": r.SKU, "Descripción": r.Descripcion, "Ubicación": r.Ubicacion || "-",
             "Cantidad total": r.CantT, "Cantidad entregada": r.CantE, "Cantidad pendiente": r.CantP, "Cantidad cancelada": r.CantC,
@@ -921,11 +1074,9 @@
     }
 
     async function exportarFaltantesExcel() {
-        const masterSnap = await db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).once('value');
-        const barridoSnap = await db.ref(`tiendas/${TIENDA_ACTUAL}/barridoActual`).once('value');
-        const masterData = masterSnap.val() ? Object.values(masterSnap.val()) : [];
-        const barridoData = barridoSnap.val() ? Object.values(barridoSnap.val()) : [];
-        const yaEscaneados = new Set(barridoData.map(b => `${b.CodDespacho}-${b.LPN}-${b.SKU}`));
+        const masterData = recs.map(r => r.m);
+        const barridoData = Array.from(barrido.values());
+        const yaEscaneados = barridoKeys;
 
         const resumenFaltantesRealtime = {};
         masterData.forEach(item => {
@@ -963,8 +1114,7 @@
     // =========================================================================
 
     async function exportarExcedentesExcel() {
-        const snap = await db.ref(`tiendas/${TIENDA_ACTUAL}/masterDAD`).once('value');
-        const data = snap.val() ? Object.values(snap.val()) : [];
+        const data = recs.map(r => r.m);
 
         const excedentes = data.filter(m => {
             const d = calcularRetraso(m.Fecha);
@@ -996,8 +1146,7 @@
 
     // 2. Exportar la tabla de Ítems Entregados / Despachados (Escaneados en vivo)
     async function exportarEntregadosExcel() {
-        const barridoSnap = await db.ref(`tiendas/${TIENDA_ACTUAL}/barridoActual`).once('value');
-        const barridoData = barridoSnap.val() ? Object.values(barridoSnap.val()) : [];
+        const barridoData = Array.from(barrido.values());
 
         const entregados = barridoData.filter(v => {
             const est = v.EstDes.toUpperCase();
@@ -1034,8 +1183,7 @@
 
     // 3. Exportar la tabla de Ítems Cancelados (Escaneados en vivo)
     async function exportarCanceladosExcel() {
-        const barridoSnap = await db.ref(`tiendas/${TIENDA_ACTUAL}/barridoActual`).once('value');
-        const barridoData = barridoSnap.val() ? Object.values(barridoSnap.val()) : [];
+        const barridoData = Array.from(barrido.values());
 
         const cancelados = barridoData.filter(v => {
             const est = v.EstDes.toUpperCase();
@@ -1074,7 +1222,7 @@
                 db.ref(`tiendas/${TIENDA_ACTUAL}/barridoActual`).remove()
             ]).then(() => {
                 alert(`✅ Base de datos limpia para Tienda ${TIENDA_ACTUAL}.`);
-                location.reload();
+                setTimeout(() => location.reload(), 1200);
             });
         }
     }
